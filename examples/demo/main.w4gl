@@ -1,0 +1,13 @@
+[framesource]
+datatype = "integer"
+
+===
+
+INITIALIZE() =
+DECLARE
+    account = premium_customer;
+    total = INTEGER NOT NULL;
+ENDDECLARE
+{
+    total = account.Add(amount = 5);
+}

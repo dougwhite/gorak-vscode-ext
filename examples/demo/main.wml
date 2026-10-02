@@ -1,0 +1,15 @@
+<frame>
+  <topform width="6000" height="3000">
+    <entryfield name="amount" xleft="200" ytop="200" width="1000"/>
+    <buttonfield name="calculate" xleft="200" ytop="700" textlabel="Calculate">
+      <script><![CDATA[ON click =
+DECLARE
+    next_total = INTEGER NOT NULL;
+ENDDECLARE
+{
+    next_total = account.Add(amount = amount);
+    total = next_total;
+}]]></script>
+    </buttonfield>
+  </topform>
+</frame>

@@ -1,0 +1,19 @@
+[proc4glsource]
+datatype="integer"
+===
+PROCEDURE semantic_checks(method = VARCHAR(24)) =
+DECLARE
+ worker = semantic_worker;
+ generic = Object;
+ buffer = StringObject;
+ rows = ARRAY OF StringObject;
+ build = PROCEDURE RETURNING StringObject;
+{
+ MESSAGE method;
+ worker.Save(payload = method);
+ semantic_worker(generic).Save(payload = method);
+ buffer = CALLPROC build(value = buffer);
+ rows[1] = StringObject(generic);
+ RETURN 0;
+}
+PROCEDURE build(value = StringObject) = { RETURN value; }

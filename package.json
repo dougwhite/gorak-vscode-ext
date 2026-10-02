@@ -1,0 +1,175 @@
+{
+  "name": "gorak-vscode-ext",
+  "displayName": "Gorak OpenROAD",
+  "description": "OpenROAD language services for Gorak source projects.",
+  "version": "0.9.0",
+  "publisher": "dougwhite",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.93.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "workspaceContains:**/gorak.json",
+    "onLanguage:gorak-openroad",
+    "onLanguage:gorak-wml"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Workspace indexing reads local source and included components. Trust the folder to enable language services."
+    },
+    "virtualWorkspaces": false
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "gorak-openroad",
+        "aliases": [
+          "Gorak OpenROAD"
+        ],
+        "extensions": [
+          ".w4gl"
+        ],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "gorak-wml",
+        "aliases": [
+          "Gorak WML"
+        ],
+        "extensions": [
+          ".wml"
+        ],
+        "configuration": "./wml-language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "gorak-openroad",
+        "scopeName": "source.gorak",
+        "path": "./syntaxes/gorak.tmLanguage.json"
+      },
+      {
+        "scopeName": "source.gorak.4gl",
+        "path": "./syntaxes/openroad.tmLanguage.json"
+      },
+      {
+        "language": "gorak-wml",
+        "scopeName": "text.xml.gorak",
+        "path": "./syntaxes/wml.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.openroad": "gorak-openroad"
+        }
+      }
+    ],
+    "commands": [
+      {
+        "command": "gorak.restartServer",
+        "title": "Gorak: Restart Language Server"
+      },
+      {
+        "command": "gorak.showIndexStatus",
+        "title": "Gorak: Show Index Status"
+      },
+      {
+        "command": "gorak.explainSymbol",
+        "title": "Gorak: Explain Symbol Resolution"
+      },
+      {
+        "command": "gorak.rebuildIndex",
+        "title": "Gorak: Rebuild Index"
+      },
+      {
+        "command": "gorak.findClassReferences",
+        "title": "Gorak: Find Class References"
+      },
+      {
+        "command": "gorak.showDiagnostics",
+        "title": "Gorak: Show Language Server Diagnostics"
+      },
+      {
+        "command": "gorak.findReferences",
+        "title": "Gorak: Find All References (Full Lines)"
+      },
+      {
+        "command": "gorak.copyDiagnostics",
+        "title": "Gorak: Copy Diagnostic Summary"
+      }
+    ],
+    "configuration": {
+      "title": "Gorak",
+      "properties": {
+        "gorak.autoDetect": {
+          "type": "boolean",
+          "default": true,
+          "description": "Select Gorak language modes for W4GL/WML files beneath gorak.json. Turn off to choose modes manually."
+        },
+        "gorak.detailCacheMB": {
+          "type": "number",
+          "default": 32,
+          "minimum": 8,
+          "maximum": 512,
+          "description": "Approximate memory budget in MB for cached source text and tokens. Symbol summaries and temporary parsing allocations are additional. Restart the language server to apply."
+        }
+      }
+    },
+    "keybindings": [
+      {
+        "command": "gorak.findReferences",
+        "key": "shift+alt+f12",
+        "when": "editorTextFocus && (editorLangId == gorak-openroad || editorLangId == gorak-wml)"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "gorak.findReferences",
+          "when": "editorLangId == gorak-openroad || editorLangId == gorak-wml",
+          "group": "0_navigation@1"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "check": "tsc --noEmit",
+    "test": "node --import tsx --test test/*.test.ts",
+    "format": "prettier --write src test scripts esbuild.mjs package.json tsconfig.json syntaxes *.json",
+    "format:check": "prettier --check src test scripts esbuild.mjs package.json tsconfig.json syntaxes *.json",
+    "vscode:prepublish": "npm run check && npm run build",
+    "package": "node scripts/package.mjs",
+    "verify": "npm run check && npm test && npm run build",
+    "test:editor": "npm run build && node scripts/test-host.mjs",
+    "pretest": "npm run build",
+    "test:restart": "npm run build && node scripts/test-restart.mjs",
+    "fetch:server": "node scripts/fetch-server.mjs",
+    "test:installed": "node scripts/test-installed.mjs"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "~1.93.0",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.25.0",
+    "prettier": "^3.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dougwhite/gorak-vscode-ext.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dougwhite/gorak-vscode-ext/issues"
+  }
+}

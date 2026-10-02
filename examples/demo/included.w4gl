@@ -1,0 +1,7 @@
+[proc4glsource]
+===
+PROCEDURE included() = DECLARE
+#include shared_locals
+{
+    shared_count = 1;
+}

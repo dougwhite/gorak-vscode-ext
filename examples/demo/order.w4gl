@@ -1,0 +1,8 @@
+[classsource]
+superclass = "userobject"
+[attributes]
+customer = "customer"
+[methods]
+GetCustomer = "METHOD RETURNING customer"
+===
+METHOD GetCustomer() = { RETURN self.customer; }

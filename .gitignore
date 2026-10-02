@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.vsix
+.vscode-test/
+coverage/
+
+/release/
+.env
+*.log
+
+/server/
+/THIRD_PARTY_NOTICES.md

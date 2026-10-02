@@ -1,0 +1,8 @@
+[proc4glsource]
+===
+PROCEDURE editing() = DECLARE caption = VARCHAR(80); code = INTEGER;
+{
+    code = ER_OK;
+    WHILE
+    RETURN caption;
+}

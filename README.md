@@ -1,0 +1,15 @@
+# Gorak OpenROAD for VS Code
+
+Search and explore exported Gorak/OpenROAD source: definitions, references, outline, hover, completion and syntax highlighting. The native server is bundled; no Rust, Python, database or OpenROAD installation is needed.
+
+1. Download the Windows x64 or Linux x64 VSIX from [Releases](https://github.com/dougwhite/gorak-vscode-ext/releases).
+2. In VS Code, run **Extensions: Install from VSIX**, then reload. Disable other OpenROAD language extensions if they conflict.
+3. Open and trust the folder containing `gorak.json`. Wait for the Gorak index status, then use **F12**, **Shift+F12**, or **Gorak: Find All References (Full Lines)**.
+
+Install a newer VSIX the same way; incompatible caches rebuild automatically. Reinstall the previous VSIX to roll back. Use **Gorak: Restart Language Server**, **Gorak: Rebuild Index**, or **Gorak: Copy Diagnostic Summary** when reporting issues.
+
+Alpha: diagnostics are advisory, not compiler results; dynamic calls, image-only dependencies and some preprocessing cannot be fully resolved. Large queries can delay responses. Files are never synced to OpenROAD. No telemetry or source upload; local caches may contain source. Editing and rename remain available, so review edits before applying them.
+
+Windows x64 is the primary target. For Remote SSH/WSL, use the package matching the extension host. MIT licensed.
+
+Development: `npm ci`, `npm run fetch:server`, `npm run verify`, `npm run test:editor`. Release instructions: [RELEASING.md](RELEASING.md).

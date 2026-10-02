@@ -1,0 +1,62 @@
+{
+  "scopeName": "source.gorak",
+  "patterns": [
+    {
+      "begin": "\\A",
+      "end": "^\\s*===\\s*$",
+      "name": "meta.header.gorak",
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.separator.gorak"
+        }
+      },
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.toml",
+          "match": "#.*$"
+        },
+        {
+          "name": "entity.name.section.toml",
+          "match": "^\\s*\\[[^\\]]+\\]"
+        },
+        {
+          "name": "string.quoted.triple.toml",
+          "begin": "\"\"\"",
+          "end": "\"\"\""
+        },
+        {
+          "name": "string.quoted.triple.literal.toml",
+          "begin": "'''",
+          "end": "'''"
+        },
+        {
+          "name": "string.quoted.double.toml",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "match": "\\\\.",
+              "name": "constant.character.escape.toml"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.toml",
+          "begin": "'",
+          "end": "'"
+        },
+        {
+          "name": "variable.other.property.toml",
+          "match": "[A-Za-z_]\\w*(?=\\s*=)"
+        },
+        {
+          "name": "constant.numeric.toml",
+          "match": "\\b\\d+\\b"
+        }
+      ]
+    },
+    {
+      "include": "source.gorak.4gl"
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+[proc4glsource]
+===
+PROCEDURE archive(caption = VARCHAR(80), count = INTEGER) = { RETURN caption; }

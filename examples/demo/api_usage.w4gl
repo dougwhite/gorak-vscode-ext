@@ -1,0 +1,7 @@
+[proc4glsource]
+===
+PROCEDURE api_usage() =
+{
+    CALLPROC archive(count = 1, caption = 'sample');
+    CurFrame.FieldByName(name = 'title');
+}

@@ -1,0 +1,85 @@
+name: Test and release
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            platform: win32-x64
+          - os: ubuntu-22.04
+            platform: linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run fetch:server
+      - run: npm run verify
+      - run: npm run format:check
+      - run: npm run package
+      - if: runner.os == 'Windows'
+        run: node scripts/ci-editor.mjs
+      - if: runner.os == 'Linux'
+        run: xvfb-run -a node scripts/ci-editor.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: extension-${{ matrix.platform }}
+          path: release/
+          if-no-files-found: error
+  minimum-editor:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: npm run fetch:server
+      - run: npm run verify
+      - run: npm run package
+      - run: node scripts/ci-editor.mjs
+        env:
+          VSCODE_TEST_VERSION: '1.93.0'
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, minimum-editor]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: extension-*
+          path: release
+          merge-multiple: true
+      - name: Validate tag and checksums
+        run: |
+          test "$GITHUB_REF_NAME" = "v$(node -p 'require("./package.json").version')"
+          cd release
+          cat *.sha256 > SHA256SUMS
+          sha256sum -c SHA256SUMS
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" release/*.vsix release/SHA256SUMS --verify-tag --prerelease --title "Gorak OpenROAD $GITHUB_REF_NAME alpha" --notes "Install the VSIX matching your extension host via Extensions: Install from VSIX, then reload. The native server is bundled. Windows x64 is the primary target. See README for alpha limitations and recovery commands."

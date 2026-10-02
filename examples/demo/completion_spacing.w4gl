@@ -1,0 +1,6 @@
+[classsource]
+[methods]
+saveRecord = "METHOD RETURNING INTEGER"
+===
+METHOD SaveRecord(first = INTEGER, second = INTEGER) = { RETURN first + second; }
+METHOD Test() = { CurObject.saveRecord(first = 1,second = 2); MESSAGE constant_zero; }

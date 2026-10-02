@@ -1,0 +1,13 @@
+**/*
+!package.json
+!README.md
+!LICENSE
+!THIRD_PARTY_NOTICES.md
+!language-configuration.json
+!wml-language-configuration.json
+!dist/extension.js
+!dist/gorak-lsp
+!dist/gorak-lsp.exe
+!syntaxes/**
+
+!dist/server-version.json

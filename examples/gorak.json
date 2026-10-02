@@ -1,0 +1,5 @@
+{
+  "name": "language_service_demo",
+  "version": "0.1.0",
+  "description": "Synthetic offline examples for the Gorak language server"
+}

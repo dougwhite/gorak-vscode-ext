@@ -1,0 +1,5 @@
+[proc4glsource]
+===
+PROCEDURE reference_preview() = DECLARE
+    long_customer_variable_name                 = customer;
+{ RETURN 0; }

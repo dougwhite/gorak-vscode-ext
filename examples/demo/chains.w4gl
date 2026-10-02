@@ -1,0 +1,6 @@
+[proc4glsource]
+===
+PROCEDURE chains() = DECLARE orders = ARRAY OF order;
+{
+    orders[1].GetCustomer().Add(amount = 5);
+}

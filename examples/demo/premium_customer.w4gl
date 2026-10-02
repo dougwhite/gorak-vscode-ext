@@ -1,0 +1,7 @@
+[classsource]
+superclass = "customer"
+
+[attributes]
+discount = "INTEGER NOT NULL"
+
+===

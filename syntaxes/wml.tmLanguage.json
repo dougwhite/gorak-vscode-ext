@@ -1,0 +1,61 @@
+{
+  "scopeName": "text.xml.gorak",
+  "patterns": [
+    {
+      "begin": "<!--",
+      "end": "-->",
+      "name": "comment.block.xml"
+    },
+    {
+      "begin": "(<script\\b[^>]*>)(\\s*<!\\[CDATA\\[)?",
+      "end": "(\\]\\]>\\s*)?(</script\\s*>)",
+      "contentName": "meta.embedded.block.openroad",
+      "beginCaptures": {
+        "1": {
+          "name": "entity.name.tag.xml"
+        },
+        "2": {
+          "name": "punctuation.definition.string.xml"
+        }
+      },
+      "endCaptures": {
+        "1": {
+          "name": "punctuation.definition.string.xml"
+        },
+        "2": {
+          "name": "entity.name.tag.xml"
+        }
+      },
+      "patterns": [
+        {
+          "include": "source.gorak.4gl"
+        }
+      ]
+    },
+    {
+      "begin": "</?",
+      "end": "/?>",
+      "name": "meta.tag.xml",
+      "patterns": [
+        {
+          "match": "\\G[\\w:-]+",
+          "name": "entity.name.tag.xml"
+        },
+        {
+          "name": "entity.other.attribute-name.xml",
+          "match": "[\\w:-]+(?=\\s*=)"
+        },
+        {
+          "begin": "\"",
+          "end": "\"",
+          "name": "string.quoted.double.xml"
+        },
+        {
+          "begin": "'",
+          "end": "'",
+          "name": "string.quoted.single.xml"
+        }
+      ]
+    }
+  ]
+}

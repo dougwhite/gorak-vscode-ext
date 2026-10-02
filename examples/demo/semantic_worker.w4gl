@@ -1,0 +1,5 @@
+[classsource]
+[methods]
+Save="METHOD"
+===
+METHOD Save(payload = VARCHAR(24)) = { MESSAGE payload; }

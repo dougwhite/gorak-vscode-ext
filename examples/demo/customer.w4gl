@@ -1,0 +1,20 @@
+[classsource]
+superclass = "userobject"
+
+[attributes]
+balance = "INTEGER NOT NULL"
+
+[methods]
+Add = "METHOD RETURNING INTEGER NOT NULL"
+
+===
+
+METHOD Add(amount = INTEGER NOT NULL) =
+DECLARE
+    updated = INTEGER NOT NULL;
+ENDDECLARE
+{
+    updated = self.balance + amount;
+    self.balance = updated;
+    RETURN updated;
+}
