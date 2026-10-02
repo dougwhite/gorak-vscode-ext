@@ -2,7 +2,7 @@ name: Test and release
 on:
   push:
     branches: [main]
-    tags: ['v*']
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -23,10 +23,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
           cache: npm
       - run: npm ci
       - run: npm run fetch:server
@@ -49,18 +49,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
           cache: npm
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - run: npm ci
       - run: npm run fetch:server
       - run: npm run verify
       - run: npm run package
       - run: node scripts/ci-editor.mjs
         env:
-          VSCODE_TEST_VERSION: '1.93.0'
+          VSCODE_TEST_VERSION: "1.93.0"
   publish:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [build, minimum-editor]
@@ -82,4 +82,5 @@ jobs:
           sha256sum -c SHA256SUMS
       - env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" release/*.vsix release/SHA256SUMS --verify-tag --prerelease --title "Gorak OpenROAD $GITHUB_REF_NAME alpha" --notes "Install the VSIX matching your extension host via Extensions: Install from VSIX, then reload. The native server is bundled. Windows x64 is the primary target. See README for alpha limitations and recovery commands."
+        run: |
+          gh release create "$GITHUB_REF_NAME" release/*.vsix release/SHA256SUMS --verify-tag --prerelease --title "Gorak OpenROAD $GITHUB_REF_NAME alpha" --notes "Install the VSIX matching your extension host via Extensions: Install from VSIX, then reload. The native server is bundled. Windows x64 is the primary target. See README for alpha limitations and recovery commands."

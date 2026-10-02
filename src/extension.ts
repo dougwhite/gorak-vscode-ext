@@ -3,6 +3,7 @@ import path from "node:path";
 import { access, constants } from "node:fs/promises";
 import type { ServerOptions } from "vscode-languageclient/node";
 import { IndexStatus, indexStatusText } from "./index-status";
+import { diagnosticSummary } from "./diagnostics";
 import { showFullLineReferences } from "./references";
 import {
   LanguageClient,
@@ -54,44 +55,22 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("gorak.copyDiagnostics", async () => {
       const cancellation = new vscode.CancellationTokenSource();
-      const timeout = setTimeout(() => cancellation.cancel(), 5000);
-      const summary: Record<string, unknown> = {
-        extensionVersion: context.extension.packageJSON.version,
-        vscodeVersion: vscode.version,
-        platform: process.platform,
-        architecture: process.arch,
-      };
-      try {
-        const health = await client!.sendRequest<Record<string, unknown>>(
-          "gorak/indexStatus",
-          undefined,
-          cancellation.token,
-        );
-        // Explicit allowlist: never copy paths, source, environment variables or raw logs.
-        for (const key of [
-          "serverVersion",
-          "indexing",
-          "files",
-          "applications",
-          "failures",
-          "parsedFiles",
-          "restoredFiles",
-          "detailCacheBytes",
-          "rssBytes",
-        ]) {
-          const value = health[key];
-          if (
-            value === null ||
-            ["string", "number", "boolean"].includes(typeof value)
-          )
-            summary[key] = value;
-        }
-      } catch {
-        summary.serverStatus = "unavailable; restart the language server";
-      } finally {
-        clearTimeout(timeout);
-        cancellation.dispose();
-      }
+      const summary = await diagnosticSummary(
+        {
+          extensionVersion: context.extension.packageJSON.version,
+          vscodeVersion: vscode.version,
+          platform: process.platform,
+          architecture: process.arch,
+        },
+        () =>
+          client!.sendRequest<Record<string, unknown>>(
+            "gorak/indexStatus",
+            undefined,
+            cancellation.token,
+          ),
+        () => cancellation.cancel(),
+      );
+      cancellation.dispose();
       await vscode.env.clipboard.writeText(JSON.stringify(summary, null, 2));
       void vscode.window.showInformationMessage(
         "Gorak diagnostic summary copied. It contains no source or document paths.",
