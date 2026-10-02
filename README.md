@@ -8,7 +8,7 @@ Search and explore exported [gorak](https://github.com/dougwhite/gorak)/OpenROAD
 
 Install a newer VSIX the same way; incompatible caches rebuild automatically. Reinstall the previous VSIX to roll back. Use **gorak: Restart Language Server**, **gorak: Rebuild Index**, or **gorak: Copy Diagnostic Summary** when reporting issues.
 
-Alpha: diagnostics are advisory, not compiler results; dynamic calls, image-only dependencies and some preprocessing cannot be fully resolved. Large queries can delay responses. Files are never synced to OpenROAD. No telemetry or source upload; local caches may contain source. Editing and rename remain available, so review edits before applying them.
+Alpha: diagnostics are advisory, not compiler results; dynamic calls, image-only dependencies and some preprocessing cannot be fully resolved. Interactive requests take priority over workspace searches; individual large-file reads or parses can still delay responses. Files are never synced to OpenROAD. No telemetry or source upload; local caches may contain source. Editing and rename remain available, so review edits before applying them.
 
 Windows x64 is the primary target. For Remote SSH/WSL, use the package matching the extension host. MIT licensed.
 
