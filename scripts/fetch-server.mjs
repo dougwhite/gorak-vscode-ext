@@ -33,5 +33,5 @@ await fs.writeFile(
   JSON.stringify({ version: manifest.version, platform, sha256: asset.sha256 }),
 );
 console.log(
-  `Fetched verified Gorak server ${manifest.version} for ${platform}`,
+  `Fetched verified gorak server ${manifest.version} for ${platform}`,
 );

@@ -1,6 +1,6 @@
-# Working on Gorak OpenROAD for VS Code
+# Working on gorak OpenROAD for VS Code
 
-This is a thin TypeScript editor client for the standalone Gorak LSP for Actian OpenROAD source in Gorak projects. It is separate from the Gorak Python CLI.
+This is a thin TypeScript editor client for the standalone gorak LSP for Actian OpenROAD source in gorak projects. It is separate from the gorak Python CLI.
 
 - Run `npm ci`, then `npm run verify` and `npm run format:check` for changes. `npm run test:editor` runs an isolated installed VS Code extension host; it needs a graphical display. Use `VSCODE_EXECUTABLE` for an alternate executable.
 - Keep analysis in `gorak-lsp-rs`; do not duplicate its parser or server here. Fetch the pinned server release before building the extension. Keep the VSIX runtime-only and never publish private corpora or build-machine paths. Keep client, grammar and editor tests here.

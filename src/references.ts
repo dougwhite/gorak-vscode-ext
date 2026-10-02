@@ -12,7 +12,7 @@ type ReferenceNode = ReferenceFile | ReferenceRow;
 
 /** Full source lines are presentation only: navigation keeps the symbol range. */
 class ReferenceInput {
-  readonly title = "Gorak References";
+  readonly title = "gorak References";
   readonly contextValue = "gorak-references";
   constructor(readonly location: vscode.Location) {}
   with(location: vscode.Location) {

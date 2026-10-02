@@ -10,7 +10,7 @@ export interface IndexStatus {
   failures?: number;
 }
 export function indexStatusText(state: IndexStatus) {
-  const name = "Gorak";
+  const name = "gorak";
   const phase = state.indexing
     ? (state.phase ?? "checking files")
     : state.failed

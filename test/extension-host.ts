@@ -455,7 +455,7 @@ export async function run() {
   while (referenceApi.getInput()?.contextValue !== "gorak-references") {
     assert.ok(
       Date.now() < previewDeadline,
-      "Gorak references appear in the standard panel",
+      "gorak references appear in the standard panel",
     );
     await new Promise((resolve) => setTimeout(resolve, 25));
   }

@@ -1,7 +1,7 @@
 {
   "name": "gorak-vscode-ext",
-  "displayName": "Gorak OpenROAD",
-  "description": "OpenROAD language services for Gorak source projects.",
+  "displayName": "gorak OpenROAD",
+  "description": "OpenROAD language services for gorak source projects.",
   "version": "0.9.1",
   "publisher": "dougwhite",
   "private": true,
@@ -30,7 +30,7 @@
       {
         "id": "gorak-openroad",
         "aliases": [
-          "Gorak OpenROAD"
+          "gorak OpenROAD"
         ],
         "extensions": [
           ".w4gl"
@@ -40,7 +40,7 @@
       {
         "id": "gorak-wml",
         "aliases": [
-          "Gorak WML"
+          "gorak WML"
         ],
         "extensions": [
           ".wml"
@@ -70,44 +70,44 @@
     "commands": [
       {
         "command": "gorak.restartServer",
-        "title": "Gorak: Restart Language Server"
+        "title": "gorak: Restart Language Server"
       },
       {
         "command": "gorak.showIndexStatus",
-        "title": "Gorak: Show Index Status"
+        "title": "gorak: Show Index Status"
       },
       {
         "command": "gorak.explainSymbol",
-        "title": "Gorak: Explain Symbol Resolution"
+        "title": "gorak: Explain Symbol Resolution"
       },
       {
         "command": "gorak.rebuildIndex",
-        "title": "Gorak: Rebuild Index"
+        "title": "gorak: Rebuild Index"
       },
       {
         "command": "gorak.findClassReferences",
-        "title": "Gorak: Find Class References"
+        "title": "gorak: Find Class References"
       },
       {
         "command": "gorak.showDiagnostics",
-        "title": "Gorak: Show Language Server Diagnostics"
+        "title": "gorak: Show Language Server Diagnostics"
       },
       {
         "command": "gorak.findReferences",
-        "title": "Gorak: Find All References (Full Lines)"
+        "title": "gorak: Find All References (Full Lines)"
       },
       {
         "command": "gorak.copyDiagnostics",
-        "title": "Gorak: Copy Diagnostic Summary"
+        "title": "gorak: Copy Diagnostic Summary"
       }
     ],
     "configuration": {
-      "title": "Gorak",
+      "title": "gorak",
       "properties": {
         "gorak.autoDetect": {
           "type": "boolean",
           "default": true,
-          "description": "Select Gorak language modes for W4GL/WML files beneath gorak.json. Turn off to choose modes manually."
+          "description": "Select gorak language modes for W4GL/WML files beneath gorak.json. Turn off to choose modes manually."
         },
         "gorak.detailCacheMB": {
           "type": "number",

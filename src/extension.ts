@@ -41,7 +41,7 @@ async function detect(document: vscode.TextDocument) {
   }
 }
 export async function activate(context: vscode.ExtensionContext) {
-  const output = vscode.window.createOutputChannel("Gorak OpenROAD");
+  const output = vscode.window.createOutputChannel("gorak OpenROAD");
   context.subscriptions.push(output);
   let degraded = false;
   let showHealth = (_message: string) => {};
@@ -50,7 +50,7 @@ export async function activate(context: vscode.ExtensionContext) {
   );
   await access(command, constants.X_OK);
   const server: ServerOptions = { command, transport: TransportKind.stdio };
-  output.appendLine("Starting Gorak language server.");
+  output.appendLine("Starting gorak language server.");
   const presentStatus = indexStatusText;
   context.subscriptions.push(
     vscode.commands.registerCommand("gorak.copyDiagnostics", async () => {
@@ -73,7 +73,7 @@ export async function activate(context: vscode.ExtensionContext) {
       cancellation.dispose();
       await vscode.env.clipboard.writeText(JSON.stringify(summary, null, 2));
       void vscode.window.showInformationMessage(
-        "Gorak diagnostic summary copied. It contains no source or document paths.",
+        "gorak diagnostic summary copied. It contains no source or document paths.",
       );
     }),
   );
@@ -91,7 +91,7 @@ export async function activate(context: vscode.ExtensionContext) {
         project = candidate;
         break;
       } catch {
-        /* Walk to the Gorak project, if any. */
+        /* Walk to the gorak project, if any. */
       }
       const parent = path.dirname(candidate);
       if (parent === candidate) break;
@@ -108,7 +108,7 @@ export async function activate(context: vscode.ExtensionContext) {
     ),
   ];
   context.subscriptions.push(...watcher);
-  client = new LanguageClient("gorak", "Gorak OpenROAD", server, {
+  client = new LanguageClient("gorak", "gorak OpenROAD", server, {
     outputChannel: output,
     middleware: {
       provideCompletionItem: async (
@@ -125,7 +125,7 @@ export async function activate(context: vscode.ExtensionContext) {
           );
           degraded = true;
           showHealth(
-            "Completion is taking longer than expected. See Gorak output; Restart Language Server is available.",
+            "Completion is taking longer than expected. See gorak output; Restart Language Server is available.",
           );
         }, 5000);
         try {
@@ -145,7 +145,7 @@ export async function activate(context: vscode.ExtensionContext) {
             `Completion failed: ${error instanceof Error ? error.name : "unknown error"}.`,
           );
           degraded = true;
-          showHealth("Completion failed. See Gorak output.");
+          showHealth("Completion failed. See gorak output.");
           throw error;
         } finally {
           clearTimeout(timer);
@@ -192,7 +192,7 @@ export async function activate(context: vscode.ExtensionContext) {
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: "Rebuilding Gorak index",
+          title: "Rebuilding gorak index",
         },
         async () => {
           await client!.sendRequest("gorak/rebuildIndex");
@@ -205,7 +205,7 @@ export async function activate(context: vscode.ExtensionContext) {
     20,
   );
   showHealth = (message) => {
-    status.text = "$(warning) Gorak: check output";
+    status.text = "$(warning) gorak: check output";
     status.tooltip = message;
   };
   context.subscriptions.push(
@@ -216,14 +216,14 @@ export async function activate(context: vscode.ExtensionContext) {
       if (event.newState === State.Stopped) {
         degraded = true;
         showHealth(
-          "Language server stopped. Run Gorak: Restart Language Server.",
+          "Language server stopped. Run gorak: Restart Language Server.",
         );
       }
     }),
   );
-  status.name = "Gorak index";
+  status.name = "gorak index";
   status.command = "gorak.showIndexStatus";
-  status.text = `$(sync~spin) Gorak: starting`;
+  status.text = `$(sync~spin) gorak: starting`;
   status.show();
   context.subscriptions.push(status);
   client.onNotification("gorak/indexStatus", (state: IndexStatus) => {
@@ -251,7 +251,7 @@ export async function activate(context: vscode.ExtensionContext) {
         position: editor.selection.active,
       });
       void vscode.window.showInformationMessage(
-        `Gorak: ${result.status}${result.candidates.length ? " — " + result.candidates.map((c) => c.name).join(", ") : ""}${result.issues.length ? " (" + result.issues.join(", ") + ")" : ""}`,
+        `gorak: ${result.status}${result.candidates.length ? " — " + result.candidates.map((c) => c.name).join(", ") : ""}${result.issues.length ? " (" + result.issues.join(", ") + ")" : ""}`,
       );
     }),
   );
@@ -264,7 +264,7 @@ export async function activate(context: vscode.ExtensionContext) {
       const timer = setTimeout(
         () =>
           output.appendLine(
-            "Server has not answered after 5 seconds. Run Gorak: Restart Language Server if it remains unresponsive.",
+            "Server has not answered after 5 seconds. Run gorak: Restart Language Server if it remains unresponsive.",
           ),
         5000,
       );
@@ -278,7 +278,7 @@ export async function activate(context: vscode.ExtensionContext) {
         );
       } catch {
         output.appendLine(
-          "Could not retrieve server health. Run Gorak: Restart Language Server.",
+          "Could not retrieve server health. Run gorak: Restart Language Server.",
         );
       } finally {
         clearTimeout(timer);
@@ -336,7 +336,7 @@ export async function activate(context: vscode.ExtensionContext) {
     const timer = setTimeout(() => {
       degraded = true;
       showHealth(
-        "Server is not responding. Open Gorak diagnostics or restart the language server.",
+        "Server is not responding. Open gorak diagnostics or restart the language server.",
       );
       output.appendLine("Language-server health request exceeded 5 seconds.");
     }, 5000);
@@ -344,7 +344,7 @@ export async function activate(context: vscode.ExtensionContext) {
       const health = await client.sendRequest<IndexStatus>("gorak/indexStatus");
       if (health.failed) {
         degraded = true;
-        showHealth("Workspace indexing failed. See Gorak output.");
+        showHealth("Workspace indexing failed. See gorak output.");
       } else if (degraded) {
         degraded = false;
         const presentation = presentStatus(health);
@@ -353,7 +353,7 @@ export async function activate(context: vscode.ExtensionContext) {
       }
     } catch {
       degraded = true;
-      showHealth("Could not contact language server. See Gorak output.");
+      showHealth("Could not contact language server. See gorak output.");
     } finally {
       clearTimeout(timer);
       checking = false;
