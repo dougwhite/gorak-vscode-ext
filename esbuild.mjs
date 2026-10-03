@@ -12,8 +12,20 @@ const result = await build({
   sourcemap: false,
   metafile: true,
 });
+const browserResult = await build({
+  entryPoints: ["src/frame-webview.mts"],
+  outfile: "dist/frame-webview.js",
+  bundle: true,
+  platform: "browser",
+  format: "iife",
+  target: "es2022",
+  metafile: true,
+});
 const packages = new Set(
-  Object.keys(result.metafile.inputs).flatMap((input) => {
+  Object.keys({
+    ...result.metafile.inputs,
+    ...browserResult.metafile.inputs,
+  }).flatMap((input) => {
     const match = /^node_modules\/((?:@[^/]+\/)?[^/]+)/.exec(input);
     return match ? [match[1]] : [];
   }),
@@ -31,16 +43,25 @@ for (const name of [...packages].sort()) {
   if (!license) throw new Error(`Missing bundled license: ${name}`);
   const licensePath = path.join(directory, license);
   notices += `\n## ${name} ${metadata.version}\n\n${await fs.readFile(licensePath, "utf8")}\n`;
+  if (name === "gorak-frame-designer")
+    notices +=
+      "\n" +
+      (await fs.readFile(
+        path.join(directory, "THIRD-PARTY-NOTICES.txt"),
+        "utf8",
+      ));
 }
 await fs.writeFile("THIRD_PARTY_NOTICES.md", notices);
 
-const executable = process.platform === "win32" ? ".exe" : "";
+const target =
+  process.env.GORAK_VSIX_TARGET ?? `${process.platform}-${process.arch}`;
+if (!["linux-x64", "win32-x64"].includes(target))
+  throw new Error(`Unsupported target: ${target}`);
+const executable = target.startsWith("win32-") ? ".exe" : "";
+await fs.rm(`dist/gorak-lsp${executable ? "" : ".exe"}`, { force: true });
 const server = JSON.parse(await fs.readFile("server/version.json", "utf8"));
 const pin = JSON.parse(await fs.readFile("server.json", "utf8"));
-if (
-  server.platform !== `${process.platform}-${process.arch}` ||
-  `v${server.version}` !== pin.tag
-)
+if (server.platform !== target || `v${server.version}` !== pin.tag)
   throw new Error(
     "Server target/version does not match: run npm run fetch:server",
   );

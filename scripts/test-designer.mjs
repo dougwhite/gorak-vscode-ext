@@ -1,0 +1,224 @@
+// Real webview interaction in a disposable VS Code profile, on Linux and Windows.
+import { chromium } from "playwright-core";
+import { spawn } from "node:child_process";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import net from "node:net";
+import assert from "node:assert/strict";
+import { editorExecutable } from "./editor.mjs";
+const output = await fs.mkdtemp(path.join(os.tmpdir(), "gorak-designer-ui-"));
+const workspace = path.join(output, "Frames Ω");
+await fs.mkdir(workspace);
+const file = path.join(workspace, "sample.wml");
+const original =
+  '<frame><!-- retained 😀 --><topform width="6500" height="4000"><entryfield name="caption" xleft="250" ytop="250" width="1200" height="350"/><entryfield name="second" xleft="2000" ytop="1000" width="800" height="350"/></topform></frame>\r\n';
+await fs.writeFile(file, original);
+await fs.writeFile(
+  path.join(workspace, "sample.w4gl"),
+  '[framesource]\nwindowwidth = "6500"\nwindowheight = "4000"\n\n===\n// opaque script\n',
+);
+const listener = net.createServer();
+await new Promise((resolve) => listener.listen(0, "127.0.0.1", resolve));
+const port = listener.address().port;
+await new Promise((resolve) => listener.close(resolve));
+const child = spawn(
+  editorExecutable(),
+  [
+    "--new-window",
+    "--wait",
+    "--skip-welcome",
+    "--skip-release-notes",
+    "--disable-workspace-trust",
+    "--disable-extensions",
+    `--remote-debugging-port=${port}`,
+    `--user-data-dir=${path.join(output, "profile")}`,
+    `--extensions-dir=${path.join(output, "extensions")}`,
+    `--extensionDevelopmentPath=${process.cwd()}`,
+    workspace,
+    file,
+  ],
+  { stdio: "ignore" },
+);
+let browser;
+try {
+  const deadline = Date.now() + 30000;
+  while (!browser) {
+    try {
+      browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
+    } catch (error) {
+      if (Date.now() > deadline) throw error;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  }
+  let page;
+  while (!(page = browser.contexts().flatMap((c) => c.pages())[0])) {
+    assert.ok(Date.now() < deadline, "VS Code window opens");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  await page.getByText("gorak: ready", { exact: false }).waitFor();
+  await page.keyboard.press("Control+w");
+  await page.getByRole("treeitem", { name: /sample.wml/ }).dblclick();
+  let frame;
+  while (!frame) {
+    for (const page of browser.contexts().flatMap((c) => c.pages()))
+      for (const candidate of page.frames())
+        if (await candidate.locator("gorak-frame-designer").count())
+          frame = candidate;
+    if (Date.now() > deadline) throw Error("Designer webview did not load");
+    if (!frame) await new Promise((r) => setTimeout(r, 100));
+  }
+  const menuAction = async (menu, item) => {
+    await frame.getByRole("button", { name: menu, exact: true }).click();
+    await frame.getByRole("menuitem", { name: item, exact: true }).click();
+  };
+  await frame.getByRole("button", { name: "Group", exact: true }).click();
+  assert.equal(
+    await frame
+      .getByRole("menuitem", { name: "Tablefield", exact: true })
+      .isDisabled(),
+    true,
+  );
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Escape");
+  await frame
+    .getByRole("menu", { name: "Group", exact: true })
+    .waitFor({ state: "hidden" });
+  await frame.locator("gorak-frame-designer .field").first().click();
+  const x = frame.locator('input[aria-label="xleft"]');
+  await x.fill("500");
+  await x.press("Tab");
+  await frame.getByText("WML: unsaved", { exact: false }).waitFor();
+  assert.equal(await fs.readFile(file, "utf8"), original);
+  const tabsBeforeUndo = await page.locator(".tabs-container .tab").count();
+  await frame.locator("gorak-frame-designer .field").first().click();
+  await page.keyboard.press("Control+z");
+  await frame.waitForFunction(
+    () =>
+      document
+        .querySelector("gorak-frame-designer")
+        ?.shadowRoot?.querySelector('input[aria-label="xleft"]')?.value ===
+      "250",
+  );
+  assert.equal(
+    await page.locator(".tabs-container .tab").count(),
+    tabsBeforeUndo,
+    "Ctrl+Z must not open a source tab",
+  );
+  await page.keyboard.press("Control+y");
+  await frame.waitForFunction(
+    () =>
+      document
+        .querySelector("gorak-frame-designer")
+        ?.shadowRoot?.querySelector('input[aria-label="xleft"]')?.value ===
+      "500",
+  );
+  assert.equal(
+    await page.locator(".tabs-container .tab").count(),
+    tabsBeforeUndo,
+    "Ctrl+Y must not open a source tab",
+  );
+  await menuAction("Edit", "Undo");
+  await frame.waitForFunction(
+    () =>
+      document
+        .querySelector("gorak-frame-designer")
+        ?.shadowRoot?.querySelector('input[aria-label="xleft"]')?.value ===
+      "250",
+  );
+  await menuAction("Edit", "Redo");
+  await frame.waitForFunction(
+    () =>
+      document
+        .querySelector("gorak-frame-designer")
+        ?.shadowRoot?.querySelector('input[aria-label="xleft"]')?.value ===
+      "500",
+  );
+  assert.equal(
+    await page.locator(".tabs-container .tab").count(),
+    tabsBeforeUndo,
+    "Toolbar undo/redo must not open a source tab",
+  );
+  await menuAction("File", "Save");
+  await frame.getByText("WML: saved", { exact: false }).waitFor();
+  assert.ok((await fs.readFile(file, "utf8")).includes('xleft="500"'));
+  await x.fill("750");
+  await x.press("Control+s");
+  const savedDeadline = Date.now() + 5000;
+  while (!(await fs.readFile(file, "utf8")).includes('xleft="750"')) {
+    assert.ok(
+      Date.now() < savedDeadline,
+      "Ctrl+S commits the focused inspector input",
+    );
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  await frame.locator("gorak-frame-designer .field").first().click();
+  await frame
+    .locator("gorak-frame-designer .field")
+    .nth(1)
+    .click({ modifiers: ["Shift"] });
+  await menuAction("Group", "Flexible Form");
+  await frame.locator(".field.flexibleform").waitFor();
+  await menuAction("File", "Save");
+  await frame.getByText("WML: saved", { exact: false }).waitFor();
+  assert.match(await fs.readFile(file, "utf8"), /<flexibleform/);
+  const groupId = await frame
+    .locator("select.selection option")
+    .evaluateAll(
+      (options) =>
+        options.find((option) => option.textContent.includes("group1"))?.value,
+    );
+  assert.ok(groupId, "Grouped form appears in the object selector");
+  await frame.locator("select.selection").selectOption(groupId);
+  await menuAction("Group", "Ungroup");
+  await frame.locator(".field.flexibleform").waitFor({ state: "detached" });
+  await menuAction("File", "Save");
+  await frame.getByText("WML: saved", { exact: false }).waitFor();
+  assert.doesNotMatch(await fs.readFile(file, "utf8"), /<flexibleform/);
+  await frame
+    .locator("gorak-frame-designer .surface")
+    .click({ position: { x: 160, y: 150 } });
+  const width = frame.locator('input[aria-label="windowwidth"]');
+  await width.fill("7000");
+  await width.press("Tab");
+  await frame.getByText("Companion: unsaved", { exact: false }).waitFor();
+  await menuAction("File", "Save");
+  await frame.getByText("Companion: saved", { exact: false }).waitFor();
+  assert.ok(
+    (await fs.readFile(path.join(workspace, "sample.w4gl"), "utf8")).includes(
+      '"7000"',
+    ),
+  );
+  assert.equal(await frame.locator("#error").textContent(), "");
+  await frame.page().screenshot({ path: path.join(output, "designer.png") });
+  console.log(
+    `Designer webview passed: field edit, in-memory dirty state, undo/redo without source tabs, compact menus, grouping/ungrouping, Save, focused-input Ctrl+S, companion edit/save. Screenshot: ${output}/designer.png`,
+  );
+} catch (error) {
+  for (const page of browser?.contexts().flatMap((c) => c.pages()) ?? [])
+    await page
+      .screenshot({ path: path.join(output, "failure.png") })
+      .catch(() => {});
+  console.error(`Designer UI logs: ${output}`, error);
+  process.exitCode = 1;
+} finally {
+  if (browser) {
+    await Promise.race([
+      Promise.all(
+        browser
+          .contexts()
+          .flatMap((context) => context.pages())
+          .map((page) => page.close().catch(() => {})),
+      ),
+      new Promise((resolve) => setTimeout(resolve, 2000)),
+    ]);
+    await Promise.race([
+      browser.close(),
+      new Promise((r) => setTimeout(r, 2000)),
+    ]);
+  }
+  child.kill();
+}
+
+// Electron can retain debugging transport handles after its window closes.
+process.exit(process.exitCode ?? 0);

@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import path from "node:path";
+import { registerFrameEditor } from "./frame-editor";
 import { access, constants } from "node:fs/promises";
 import type { ServerOptions } from "vscode-languageclient/node";
 import { IndexStatus, indexStatusText } from "./index-status";
@@ -41,6 +42,7 @@ async function detect(document: vscode.TextDocument) {
   }
 }
 export async function activate(context: vscode.ExtensionContext) {
+  registerFrameEditor(context);
   const output = vscode.window.createOutputChannel("gorak OpenROAD");
   context.subscriptions.push(output);
   let degraded = false;
