@@ -75,5 +75,23 @@ test("TextMate grammars tokenize TOML, 4GL, WML and embedded scripts", async () 
     (token) => token.startIndex >= line.lastIndexOf("</buttonfield>") + 2,
   );
   assert.ok(closing?.scopes.includes("entity.name.tag.xml"));
+  const instruction =
+    "<script>INITIALIZE = { <?ingres_invalidxmlchar 7?> RETURN; }</script>";
+  const instructionTokens = wml.tokenizeLine(instruction, INITIAL).tokens;
+  assert.ok(
+    instructionTokens.some((t) => t.scopes.includes("meta.preprocessor.xml")),
+  );
+  assert.ok(
+    instructionTokens.some((t) =>
+      t.scopes.includes("keyword.control.openroad"),
+    ),
+  );
+  const literal =
+    "<script><![CDATA[INITIALIZE = { MESSAGE '<?ingres_invalidxmlchar 7?>'; }]]></script>";
+  assert.ok(
+    !wml
+      .tokenizeLine(literal, INITIAL)
+      .tokens.some((t) => t.scopes.includes("meta.preprocessor.xml")),
+  );
   registry.dispose();
 });

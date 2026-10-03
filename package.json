@@ -133,14 +133,23 @@
           "group": "0_navigation@1"
         }
       ]
-    }
+    },
+    "jsonValidation": [
+      {
+        "fileMatch": [
+          "**/field_defaults.json",
+          "**/*.fielddefaults.json"
+        ],
+        "url": "./schemas/native-styles.schema.json"
+      }
+    ]
   },
   "scripts": {
     "build": "node esbuild.mjs",
     "check": "tsc --noEmit",
     "test": "node --import tsx --test test/*.test.ts",
-    "format": "prettier --write src test scripts esbuild.mjs package.json tsconfig.json syntaxes *.json .github .vscode",
-    "format:check": "prettier --check src test scripts esbuild.mjs package.json tsconfig.json syntaxes *.json .github .vscode",
+    "format": "prettier --write src test scripts esbuild.mjs package.json tsconfig.json syntaxes schemas *.json .github .vscode",
+    "format:check": "prettier --check src test scripts esbuild.mjs package.json tsconfig.json syntaxes schemas *.json .github .vscode",
     "vscode:prepublish": "npm run check && npm run build",
     "package": "node scripts/package.mjs",
     "verify": "npm run check && npm test && npm run build",
@@ -162,6 +171,7 @@
     "prettier": "^3.0.0",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0",
+    "vscode-json-languageservice": "^6.0.0-next.3",
     "vscode-oniguruma": "^2.0.1",
     "vscode-textmate": "^9.0.0"
   },

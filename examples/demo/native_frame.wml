@@ -1,0 +1,7 @@
+<frame>
+  <topform>
+    <entryfield name="caption" datatype="varchar(41)" fieldstyle="0"/>
+    <tablefield name="rows"><columnfield name="title"><protofield type="entryfield" datatype="varchar(42)"/></columnfield></tablefield>
+    <script>INITIALIZE = { MESSAGE '🎈<?ingres_invalidxmlchar 7?>'; MESSAGE caption; }</script>
+  </topform>
+</frame>

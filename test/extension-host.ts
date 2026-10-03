@@ -595,12 +595,68 @@ export async function run() {
     semanticText,
     "Rename remains a preview",
   );
+  const nativeFrame = await vscode.workspace.openTextDocument(
+    vscode.Uri.file(path.join(root, "examples/demo/native_frame.wml")),
+  );
+  await vscode.languages.setTextDocumentLanguage(nativeFrame, "gorak-wml");
+  await vscode.window.showTextDocument(nativeFrame);
+  const nativeText = nativeFrame.getText();
+  const nativeLocation = nativeFrame.positionAt(nativeText.indexOf("caption;"));
+  const nativeDefinitions = await vscode.commands.executeCommand<
+    vscode.Location[]
+  >("vscode.executeDefinitionProvider", nativeFrame.uri, nativeLocation);
+  assert.equal(nativeDefinitions?.length, 1, "Native WML PI navigation");
+  assert.equal(nativeFrame.getText(nativeDefinitions![0].range), "caption");
+  const columnHover = await vscode.commands.executeCommand<vscode.Hover[]>(
+    "vscode.executeHoverProvider",
+    nativeFrame.uri,
+    nativeFrame.positionAt(nativeText.indexOf('name="title"') + 6),
+  );
+  assert.match(
+    (columnHover ?? [])
+      .flatMap((hover) =>
+        hover.contents.map((content) =>
+          typeof content === "string" ? content : content.value,
+        ),
+      )
+      .join("\n")
+      .replaceAll("\\", ""),
+    /varchar\(42\)/i,
+    `Explicit column prototype type: ${JSON.stringify(columnHover)}`,
+  );
+  const styleDocument = await vscode.workspace.openTextDocument(
+    vscode.Uri.file(
+      path.join(root, "examples/demo/native_frame.fielddefaults.json"),
+    ),
+  );
+  await vscode.window.showTextDocument(styleDocument);
+  const stylePosition = styleDocument.positionAt(
+    styleDocument.getText().indexOf('"outlinecolor"'),
+  );
+  let styleCompletions: vscode.CompletionList | undefined;
+  for (let attempt = 0; attempt < 50; attempt++) {
+    styleCompletions =
+      await vscode.commands.executeCommand<vscode.CompletionList>(
+        "vscode.executeCompletionItemProvider",
+        styleDocument.uri,
+        stylePosition,
+      );
+    if (styleCompletions?.items.some((item) => item.label === "_type")) break;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.ok(
+    styleCompletions?.items.some((item) => item.label === "_type"),
+    "Native stylesheet schema completion",
+  );
   await fs.writeFile(
     path.join(process.env.GORAK_TEST_OUTPUT!, "result.json"),
     JSON.stringify(
       {
         passed: true,
         checks: [
+          "native-stylesheet-completion",
+          "native-column-prototype-hover",
+          "native-wml-pi-navigation",
           "local-procedure-signature",
           "contextual-parameter-references",
           "cast-member-definition",

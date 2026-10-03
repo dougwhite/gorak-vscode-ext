@@ -2,31 +2,75 @@
   "scopeName": "text.xml.gorak",
   "patterns": [
     {
+      "begin": "<\\?",
+      "end": "\\?>",
+      "name": "meta.preprocessor.xml",
+      "patterns": [
+        {
+          "match": "\\bingres_invalidxmlchar\\b",
+          "name": "keyword.other.processing-instruction.xml"
+        },
+        {
+          "match": "\\b[0-9]+\\b",
+          "name": "constant.numeric.xml"
+        }
+      ]
+    },
+    {
       "begin": "<!--",
       "end": "-->",
       "name": "comment.block.xml"
     },
     {
-      "begin": "(<script\\b[^>]*>)(\\s*<!\\[CDATA\\[)?",
-      "end": "(\\]\\]>\\s*)?(</script\\s*>)",
+      "begin": "(<script\\b[^>]*>)",
+      "end": "(</script\\s*>)",
       "contentName": "meta.embedded.block.openroad",
       "beginCaptures": {
         "1": {
           "name": "entity.name.tag.xml"
-        },
-        "2": {
-          "name": "punctuation.definition.string.xml"
         }
       },
       "endCaptures": {
         "1": {
-          "name": "punctuation.definition.string.xml"
-        },
-        "2": {
           "name": "entity.name.tag.xml"
         }
       },
       "patterns": [
+        {
+          "begin": "<!\\[CDATA\\[",
+          "end": "\\]\\]>",
+          "name": "meta.cdata.xml",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.xml"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.xml"
+            }
+          },
+          "patterns": [
+            {
+              "include": "source.gorak.4gl"
+            }
+          ]
+        },
+        {
+          "begin": "<\\?",
+          "end": "\\?>",
+          "name": "meta.preprocessor.xml",
+          "patterns": [
+            {
+              "match": "\\bingres_invalidxmlchar\\b",
+              "name": "keyword.other.processing-instruction.xml"
+            },
+            {
+              "match": "\\b[0-9]+\\b",
+              "name": "constant.numeric.xml"
+            }
+          ]
+        },
         {
           "include": "source.gorak.4gl"
         }

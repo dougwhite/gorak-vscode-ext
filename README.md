@@ -13,3 +13,5 @@ Alpha: diagnostics are advisory, not compiler results; dynamic calls, image-only
 Windows x64 is the primary target. For Remote SSH/WSL, use the package matching the extension host. MIT licensed.
 
 Development: `npm ci`, `npm run fetch:server`, `npm run verify`, `npm run test:editor`. Release instructions: [RELEASING.md](RELEASING.md).
+
+Native stylesheet JSON has completion and structural validation. It describes creation styles only; field analysis uses explicit WML values. Older palette files and `gorak_style` require a fresh CLI export.

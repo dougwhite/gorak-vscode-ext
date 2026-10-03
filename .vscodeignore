@@ -11,3 +11,4 @@
 !syntaxes/**
 
 !dist/server-version.json
+!schemas/**

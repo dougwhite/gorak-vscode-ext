@@ -1,0 +1,168 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "gorak native stylesheet",
+  "description": "Native Style Editor palette only. Existing frame fields use explicit WML properties, never values inherited from this stylesheet. Resolution: built-in → project → application → frame. Validation here checks layer structure, not resolved inheritance or native property semantics.",
+  "type": "object",
+  "properties": {
+    "standalone": {
+      "const": true,
+      "description": "Complete standalone stylesheet, independent of the built-in baseline."
+    },
+    "properties": {
+      "$ref": "#/definitions/node"
+    },
+    "group_order": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true,
+      "description": "Exact native group order, including repeated group labels such as entryfield:2."
+    },
+    "groups": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/group"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "description": "Named native groups. Null removes an inherited group. Literal colons/percent signs are percent-escaped."
+    },
+    "$order": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true,
+      "description": "Exact native property order. Ordinary value edits do not need this."
+    },
+    "$before": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Place a newly introduced native property before the named inherited property."
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "required": ["standalone"]
+      },
+      "then": {
+        "required": ["properties", "group_order", "groups"]
+      }
+    }
+  ],
+  "definitions": {
+    "node": {
+      "type": "object",
+      "properties": {
+        "_type": {
+          "type": ["string", "null"],
+          "description": "Exact native XML type; null removes an inherited type."
+        },
+        "_attributes": {
+          "type": ["object", "null"],
+          "additionalProperties": {
+            "type": ["string", "null"]
+          }
+        },
+        "_text": {
+          "type": ["string", "null"]
+        },
+        "$order": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "description": "Exact native property order. Ordinary value edits do not need this."
+        },
+        "$before": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Place a newly introduced native property before the named inherited property."
+        },
+        "row": {
+          "type": ["object", "null"],
+          "patternProperties": {
+            "^row[1-9][0-9]*$": {
+              "$ref": "#/definitions/value"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "patternProperties": {
+        "^(?!row$)[^_$].*$": {
+          "$ref": "#/definitions/value"
+        }
+      },
+      "additionalProperties": false
+    },
+    "group": {
+      "type": "object",
+      "properties": {
+        "properties": {
+          "$ref": "#/definitions/node"
+        },
+        "styles": {
+          "type": "object",
+          "patternProperties": {
+            "^style[1-9][0-9]*$": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/node"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "description": "Fixed native slots. A delta may override style2 alone. Resolved slots must be contiguous; entries are never implicitly renumbered."
+        },
+        "$order": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true,
+          "description": "Exact native property order. Ordinary value edits do not need this."
+        },
+        "$before": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Place a newly introduced native property before the named inherited property."
+        }
+      },
+      "additionalProperties": false
+    },
+    "value": {
+      "description": "Native text stays text: empty strings and \"0\" are meaningful. Null removes an inherited property. Nested objects preserve native structure.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/definitions/node"
+        }
+      ]
+    }
+  }
+}
