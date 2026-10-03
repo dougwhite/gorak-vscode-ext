@@ -30,6 +30,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run fetch:server
+      - run: npm run fetch:compatibility
       - run: npm run verify
       - run: npm run format:check
       - run: npm run package
@@ -56,6 +57,7 @@ jobs:
           python-version: "3.12"
       - run: npm ci
       - run: npm run fetch:server
+      - run: npm run fetch:compatibility
       - run: npm run verify
       - run: npm run package
       - run: node scripts/ci-editor.mjs

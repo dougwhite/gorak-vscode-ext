@@ -199,7 +199,9 @@
     "test:restart": "npm run build && node scripts/test-restart.mjs",
     "fetch:server": "node scripts/fetch-server.mjs",
     "test:installed": "node scripts/test-installed.mjs",
-    "test:designer": "npm run build && node scripts/test-designer.mjs"
+    "test:designer": "npm run build && node scripts/test-designer.mjs",
+    "fetch:compatibility": "node scripts/fetch-compatibility.mjs",
+    "test:compatibility": "node scripts/test-installed.mjs --compatibility"
   },
   "dependencies": {
     "gorak-frame-designer": "https://github.com/dougwhite/gorak-frame-designer/releases/download/v0.1.0-alpha.1/gorak-frame-designer-0.1.0-alpha.1.tgz",

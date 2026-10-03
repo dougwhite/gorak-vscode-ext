@@ -1,15 +1,28 @@
 // Exercise actual VSIX installation, upgrade and rollback in a disposable profile.
 import fs from "node:fs/promises";
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { ecosystem } from "./ecosystem.mjs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync, spawn } from "node:child_process";
 import { build } from "esbuild";
 import { downloadAndUnzipVSCode } from "@vscode/test-electron";
+import { checkout, verifyCheckout } from "./compatibility-pin.mjs";
+const compatibility = process.argv.includes("--compatibility");
+if (compatibility) verifyCheckout();
 const executable =
   process.env.VSCODE_EXECUTABLE ?? (await downloadAndUnzipVSCode("stable"));
-const output = await fs.mkdtemp(path.join(os.tmpdir(), "gorak-installed-"));
+// Windows temp roots can use 8.3 aliases while the LSP returns canonical paths.
+const output = await fs.realpath(
+  await fs.mkdtemp(path.join(os.tmpdir(), "gorak-installed-")),
+);
 const workspace = path.join(output, "Alpha Workspace Ω");
-await fs.cp("examples", workspace, { recursive: true });
+await fs.cp(
+  compatibility ? path.join(checkout, "compatibility/project") : "examples",
+  workspace,
+  { recursive: true },
+);
 const extensions = path.join(output, "extensions");
 const profile = path.join(output, "profile");
 const { version } = JSON.parse(await fs.readFile("package.json", "utf8"));
@@ -19,11 +32,13 @@ const current = path.resolve(
 const previous = path.join(output, "previous.vsix");
 // A synthetic prior package tests installer identity/version transitions. Native cache
 // schema incompatibility is covered independently by the server's upgrade regression.
-const result = spawnSync(
-  "python",
-  [
-    "-c",
-    `import json,sys,zipfile,xml.etree.ElementTree as ET
+const result = compatibility
+  ? { status: 0 }
+  : spawnSync(
+      "python",
+      [
+        "-c",
+        `import json,sys,zipfile,xml.etree.ElementTree as ET
 with zipfile.ZipFile(sys.argv[1]) as source, zipfile.ZipFile(sys.argv[2], 'w', zipfile.ZIP_DEFLATED) as target:
  for item in source.infolist():
   data=source.read(item.filename)
@@ -36,15 +51,17 @@ with zipfile.ZipFile(sys.argv[1]) as source, zipfile.ZipFile(sys.argv[2], 'w', z
    data=ET.tostring(root,encoding='utf-8',xml_declaration=True)
   target.writestr(item,data)
 `,
-    current,
-    previous,
-  ],
-  { stdio: "inherit" },
-);
+        current,
+        previous,
+      ],
+      { stdio: "inherit" },
+    );
 if (result.status !== 0)
   throw new Error("Could not create synthetic prior package");
 await build({
-  entryPoints: ["test/installed-host.ts"],
+  entryPoints: [
+    compatibility ? "test/compatibility-host.ts" : "test/installed-host.ts",
+  ],
   outfile: path.join(output, "test.cjs"),
   bundle: true,
   platform: "node",
@@ -52,11 +69,14 @@ await build({
   external: ["vscode"],
 });
 try {
-  for (const [phase, vsix, expected] of [
-    ["install", previous, "0.8.99"],
-    ["upgrade", current, version],
-    ["rollback", previous, "0.8.99"],
-  ]) {
+  let installedPath;
+  for (const [phase, vsix, expected] of compatibility
+    ? [["compatibility", current, version]]
+    : [
+        ["install", previous, "0.8.99"],
+        ["upgrade", current, version],
+        ["rollback", previous, "0.8.99"],
+      ]) {
     let cli = path.join(path.dirname(executable), "resources/app/out/cli.js");
     try {
       await fs.access(cli);
@@ -111,6 +131,49 @@ try {
       }
     }
     if (!installed) throw new Error("Installed package missing");
+    installedPath = installed;
+    if (compatibility) {
+      const bundled = JSON.parse(
+        await fs.readFile(
+          path.join(installed, "dist/server-version.json"),
+          "utf8",
+        ),
+      );
+      assert.equal(`v${bundled.version}`, ecosystem.lsp_revision);
+      assert.equal(bundled.platform, `${process.platform}-${process.arch}`);
+      const binary = await fs.readFile(
+        path.join(
+          installed,
+          "dist",
+          process.platform === "win32" ? "gorak-lsp.exe" : "gorak-lsp",
+        ),
+      );
+      assert.equal(
+        createHash("sha256").update(binary).digest("hex"),
+        bundled.sha256,
+      );
+      const metadata = JSON.parse(
+        await fs.readFile(path.join(installed, "package.json"), "utf8"),
+      );
+      const packageMetadata = JSON.parse(
+        await fs.readFile("package.json", "utf8"),
+      );
+      assert.equal(
+        metadata.dependencies["gorak-frame-designer"],
+        packageMetadata.dependencies["gorak-frame-designer"],
+      );
+      // Reject a stale VSIX even when its extension version was not bumped.
+      for (const name of [
+        "extension.js",
+        "frame-webview.js",
+        "server-version.json",
+      ])
+        assert.deepEqual(
+          await fs.readFile(path.join(installed, "dist", name)),
+          await fs.readFile(path.join("dist", name)),
+          `Packaged runtime: ${name}`,
+        );
+    }
     await fs.rm(path.join(output, "result.json"), { force: true });
     await new Promise((resolve, reject) => {
       const child = spawn(
@@ -158,6 +221,25 @@ try {
     );
     if (!result.passed) throw new Error(`Installed ${phase} acceptance failed`);
     console.log(JSON.stringify(result));
+  }
+  if (compatibility) {
+    const designer = spawnSync(
+      process.execPath,
+      ["scripts/test-designer.mjs"],
+      {
+        stdio: "inherit",
+        env: {
+          ...process.env,
+          VSCODE_EXECUTABLE: executable,
+          GORAK_COMPATIBILITY_WORKSPACE: workspace,
+          GORAK_INSTALLED_EXTENSION: installedPath,
+        },
+        timeout: 120000,
+      },
+    );
+    verifyCheckout();
+    if (designer.status !== 0)
+      throw Error("Installed designer compatibility failed");
   }
   await fs.rm(output, { recursive: true, force: true });
 } catch (error) {

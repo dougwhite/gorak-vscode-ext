@@ -10,3 +10,5 @@ coverage/
 
 /server/
 /THIRD_PARTY_NOTICES.md
+
+/.ci/

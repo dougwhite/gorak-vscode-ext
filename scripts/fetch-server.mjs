@@ -1,3 +1,5 @@
+import { verifyDependencies } from "./ecosystem.mjs";
+verifyDependencies(false);
 import fs from "node:fs/promises";
 import crypto from "node:crypto";
 const pin = JSON.parse(await fs.readFile("server.json", "utf8"));
