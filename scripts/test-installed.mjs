@@ -13,7 +13,10 @@ const compatibility = process.argv.includes("--compatibility");
 if (compatibility) verifyCheckout();
 const executable =
   process.env.VSCODE_EXECUTABLE ?? (await downloadAndUnzipVSCode("stable"));
-const output = await fs.mkdtemp(path.join(os.tmpdir(), "gorak-installed-"));
+// Windows temp roots can use 8.3 aliases while the LSP returns canonical paths.
+const output = await fs.realpath(
+  await fs.mkdtemp(path.join(os.tmpdir(), "gorak-installed-")),
+);
 const workspace = path.join(output, "Alpha Workspace Ω");
 await fs.cp(
   compatibility ? path.join(checkout, "compatibility/project") : "examples",
