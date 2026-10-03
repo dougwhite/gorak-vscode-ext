@@ -12,3 +12,5 @@
 
 !dist/server-version.json
 !schemas/**
+
+!dist/frame-webview.js

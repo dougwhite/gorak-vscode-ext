@@ -1,7 +1,10 @@
 import fs from "node:fs/promises";
 import crypto from "node:crypto";
 const pin = JSON.parse(await fs.readFile("server.json", "utf8"));
-const platform = `${process.platform}-${process.arch}`;
+const platform =
+  process.env.GORAK_VSIX_TARGET ?? `${process.platform}-${process.arch}`;
+if (!["linux-x64", "win32-x64"].includes(platform))
+  throw new Error(`Unsupported target: ${platform}`);
 const base = `https://github.com/${pin.repository}/releases/download/${pin.tag}/`;
 async function download(name, digest) {
   const response = await fetch(base + name);
@@ -18,7 +21,7 @@ if (`v${manifest.version}` !== pin.tag)
 const asset = manifest.platforms[platform];
 if (!asset) throw new Error(`Unsupported extension host: ${platform}`);
 await fs.mkdir("server", { recursive: true });
-const executable = "gorak-lsp" + (process.platform === "win32" ? ".exe" : "");
+const executable = "gorak-lsp" + (platform.startsWith("win32-") ? ".exe" : "");
 await fs.writeFile(
   `server/${executable}`,
   await download(asset.name, asset.sha256),

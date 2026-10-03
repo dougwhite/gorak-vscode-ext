@@ -1,7 +1,8 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import crypto from "node:crypto";
-const target = `${process.platform}-${process.arch}`;
+const target =
+  process.env.GORAK_VSIX_TARGET ?? `${process.platform}-${process.arch}`;
 if (!["win32-x64", "linux-x64"].includes(target))
   throw new Error(`Unsupported release target: ${target}`);
 await fs.mkdir("release", { recursive: true });

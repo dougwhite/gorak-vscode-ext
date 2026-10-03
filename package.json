@@ -2,7 +2,7 @@
   "name": "gorak-vscode-ext",
   "displayName": "gorak OpenROAD",
   "description": "OpenROAD language services for gorak source projects.",
-  "version": "0.9.3",
+  "version": "0.9.11",
   "publisher": "dougwhite",
   "private": true,
   "license": "MIT",
@@ -16,7 +16,8 @@
   "activationEvents": [
     "workspaceContains:**/gorak.json",
     "onLanguage:gorak-openroad",
-    "onLanguage:gorak-wml"
+    "onLanguage:gorak-wml",
+    "onCustomEditor:gorak.frameDesigner"
   ],
   "capabilities": {
     "untrustedWorkspaces": {
@@ -99,6 +100,16 @@
       {
         "command": "gorak.copyDiagnostics",
         "title": "gorak: Copy Diagnostic Summary"
+      },
+      {
+        "command": "gorak.openFrameSource",
+        "title": "gorak: Open Raw WML",
+        "icon": "$(code)"
+      },
+      {
+        "command": "gorak.openFrameDesigner",
+        "title": "gorak: Open Frame Designer",
+        "icon": "$(preview)"
       }
     ],
     "configuration": {
@@ -115,6 +126,12 @@
           "minimum": 8,
           "maximum": 512,
           "description": "Approximate memory budget in MB for cached source text and tokens. Symbol summaries and temporary parsing allocations are additional. Restart the language server to apply."
+        },
+        "gorak.frameDesigner.enabled": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "Open WML files in the frame designer. Disable to use the raw text editor."
         }
       }
     },
@@ -132,6 +149,18 @@
           "when": "editorLangId == gorak-openroad || editorLangId == gorak-wml",
           "group": "0_navigation@1"
         }
+      ],
+      "editor/title": [
+        {
+          "command": "gorak.openFrameSource",
+          "when": "activeCustomEditorId == gorak.frameDesigner",
+          "group": "navigation"
+        },
+        {
+          "command": "gorak.openFrameDesigner",
+          "when": "resourceExtname == .wml && activeCustomEditorId != gorak.frameDesigner && config.gorak.frameDesigner.enabled",
+          "group": "navigation"
+        }
       ]
     },
     "jsonValidation": [
@@ -141,6 +170,18 @@
           "**/*.fielddefaults.json"
         ],
         "url": "./schemas/native-styles.schema.json"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "gorak.frameDesigner",
+        "displayName": "gorak Frame Designer",
+        "selector": [
+          {
+            "filenamePattern": "*.wml"
+          }
+        ],
+        "priority": "default"
       }
     ]
   },
@@ -157,9 +198,11 @@
     "pretest": "npm run build",
     "test:restart": "npm run build && node scripts/test-restart.mjs",
     "fetch:server": "node scripts/fetch-server.mjs",
-    "test:installed": "node scripts/test-installed.mjs"
+    "test:installed": "node scripts/test-installed.mjs",
+    "test:designer": "npm run build && node scripts/test-designer.mjs"
   },
   "dependencies": {
+    "gorak-frame-designer": "https://github.com/dougwhite/gorak-frame-designer/releases/download/v0.1.0-alpha.1/gorak-frame-designer-0.1.0-alpha.1.tgz",
     "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {
@@ -168,6 +211,7 @@
     "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.0.0",
     "esbuild": "^0.25.0",
+    "playwright-core": "^1.63.0",
     "prettier": "^3.0.0",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0",

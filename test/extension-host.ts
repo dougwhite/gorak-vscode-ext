@@ -1,3 +1,4 @@
+import { testFrameEditor } from "./frame-editor-host";
 import * as vscode from "vscode";
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -648,12 +649,14 @@ export async function run() {
     styleCompletions?.items.some((item) => item.label === "_type"),
     "Native stylesheet schema completion",
   );
+  await testFrameEditor(extension);
   await fs.writeFile(
     path.join(process.env.GORAK_TEST_OUTPUT!, "result.json"),
     JSON.stringify(
       {
         passed: true,
         checks: [
+          "frame-designer-default-source-disable-dirty-save-companion-undo-stale-edits",
           "native-stylesheet-completion",
           "native-column-prototype-hover",
           "native-wml-pi-navigation",

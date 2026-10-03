@@ -5,6 +5,7 @@ const executable = await downloadAndUnzipVSCode(
 );
 for (const script of [
   "test-host.mjs",
+  "test-designer.mjs",
   "test-restart.mjs",
   "test-installed.mjs",
 ]) {
