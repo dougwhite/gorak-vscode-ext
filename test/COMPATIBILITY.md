@@ -36,4 +36,5 @@ stable VS Code. CI runs certification alongside the unchanged development, resta
 and upgrade/rollback suites on Linux/Windows and Windows VS Code 1.93.0. A graphical
 display is required (CI uses Xvfb on Linux). Failures retain disposable profile logs;
 the rendered test prints its screenshot directory. Missing fixtures are errors, never
-skips. No database connection is made.
+skips. CI runs every editor suite and retains failure status if any suite fails.
+No database connection is made.

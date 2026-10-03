@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 const executable = await downloadAndUnzipVSCode(
   process.env.VSCODE_TEST_VERSION ?? "stable",
 );
+const failures = [];
 for (const script of [
   "test-host.mjs",
   "test-designer.mjs",
@@ -18,5 +19,10 @@ for (const script of [
       env: { ...process.env, VSCODE_EXECUTABLE: executable },
     },
   );
-  if (result.status !== 0) process.exit(result.status ?? 1);
+  if (result.status !== 0) failures.push(script);
+}
+
+if (failures.length) {
+  console.error(`Failed editor suites: ${failures.join(", ")}`);
+  process.exit(1);
 }
