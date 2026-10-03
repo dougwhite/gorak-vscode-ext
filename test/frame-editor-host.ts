@@ -3,6 +3,72 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { FrameEditor, frameViewType } from "../src/frame-editor";
+// Command completion and TextDocument updates cross separate extension-host RPCs.
+// Subscribe before dispatch, issue the command once, and wait for the actual edit.
+async function historyEdit(
+  document: vscode.TextDocument,
+  command: "undo" | "redo",
+  expected: string,
+) {
+  const version = document.version;
+  let versionAtCommandReturn: number | undefined;
+  let reason: vscode.TextDocumentChangeReason | undefined;
+  let subscription: vscode.Disposable | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const changed = new Promise<void>((resolve, reject) => {
+    subscription = vscode.workspace.onDidChangeTextDocument((event) => {
+      if (event.document !== document || !event.contentChanges.length) return;
+      reason = event.reason;
+      if (document.version > version && document.getText() === expected)
+        resolve();
+    });
+    timer = setTimeout(
+      () =>
+        reject(
+          new Error(
+            `${command} did not produce the expected source: ${JSON.stringify({
+              versionBefore: version,
+              versionAtCommandReturn,
+              currentVersion: document.version,
+              reason,
+              activeDocument:
+                vscode.window.activeTextEditor?.document.uri.toString(),
+              expectedDocument: document.uri.toString(),
+              actual: document.getText(),
+              expected,
+            })}`,
+          ),
+        ),
+      5000,
+    );
+  });
+  try {
+    await Promise.all([
+      changed,
+      vscode.commands.executeCommand(command).then(() => {
+        versionAtCommandReturn = document.version;
+      }),
+    ]);
+    assert.equal(
+      reason,
+      command === "undo"
+        ? vscode.TextDocumentChangeReason.Undo
+        : vscode.TextDocumentChangeReason.Redo,
+    );
+    assert.equal(
+      document.getText(),
+      expected,
+      `${command} preserves the exact source`,
+    );
+    console.log(
+      `Frame ${command}: ${JSON.stringify({ versionBefore: version, versionAtCommandReturn, versionAfter: document.version })}`,
+    );
+  } finally {
+    clearTimeout(timer);
+    subscription?.dispose();
+  }
+}
+
 export async function testFrameEditor(extension: vscode.Extension<any>) {
   const folder = path.join(process.env.GORAK_TEST_OUTPUT!, "frame-test");
   await fs.mkdir(folder, { recursive: true });
@@ -118,15 +184,14 @@ export async function testFrameEditor(extension: vscode.Extension<any>) {
     await fs.readFile(companion.fsPath, "utf8"),
     companionDoc.getText(),
   );
-  await vscode.window.showTextDocument(doc);
-  await vscode.commands.executeCommand("undo");
-  assert.equal(
-    doc.getText(),
-    original,
-    "Native undo restores the exact source",
+  await vscode.window.showTextDocument(doc, { preserveFocus: false });
+  assert.equal(vscode.window.activeTextEditor?.document, doc);
+  await historyEdit(doc, "undo", original);
+  await historyEdit(
+    doc,
+    "redo",
+    original.slice(0, at) + "500" + original.slice(at + 3),
   );
-  await vscode.commands.executeCommand("redo");
-  assert.ok(doc.getText().includes('xleft="500"'));
   await doc.save();
   await vscode.commands.executeCommand("gorak.openFrameSource", uri);
   assert.equal(
