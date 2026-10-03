@@ -1,5 +1,7 @@
 # Working on gorak OpenROAD for VS Code
 
+Always spell `gorak` in lowercase, including at the start of sentences and in headings, documentation, UI text, commit messages, PR titles and release titles.
+
 This is a thin TypeScript editor client for the standalone gorak LSP for Actian OpenROAD source in gorak projects. It is separate from the gorak Python CLI.
 
 - Run `npm ci`, then `npm run verify` and `npm run format:check` for changes. `npm run test:editor` runs an isolated installed VS Code extension host; it needs a graphical display. Use `VSCODE_EXECUTABLE` for an alternate executable.
