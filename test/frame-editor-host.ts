@@ -97,6 +97,27 @@ export async function testFrameEditor(extension: vscode.Extension<any>) {
     assert.ok(Date.now() < deadline, "WML defaults to the designer");
     await new Promise((r) => setTimeout(r, 50));
   }
+  await vscode.commands.executeCommand("gorak.openFrameSource", uri);
+  assert.equal(
+    vscode.window.activeTextEditor?.document.uri.toString(),
+    uri.toString(),
+  );
+  const designerTabs = () =>
+    vscode.window.tabGroups.all
+      .flatMap((group) => group.tabs)
+      .filter(
+        (tab) =>
+          tab.input instanceof vscode.TabInputCustom &&
+          tab.input.viewType === frameViewType &&
+          tab.input.uri.toString() === uri.toString(),
+      );
+  // Finish the resolver/source-switch check before attaching the fake transport.
+  // A live webview can retain focus after showTextDocument: Windows traces showed
+  // history commands handled by 'webview' despite activeTextEditor being the WML.
+  // Close it explicitly so this bridge test has only one provider and no competing
+  // webview command target. The designer UI suite covers real webview history.
+  assert.equal(await vscode.window.tabGroups.close(designerTabs()), true);
+  assert.equal(designerTabs().length, 0, "Resolver webview is closed");
   // Run the host bridge against real TextDocuments and a controllable webview transport.
   const messages: any[] = [];
   const receiver = new vscode.EventEmitter<any>();
@@ -193,11 +214,6 @@ export async function testFrameEditor(extension: vscode.Extension<any>) {
     original.slice(0, at) + "500" + original.slice(at + 3),
   );
   await doc.save();
-  await vscode.commands.executeCommand("gorak.openFrameSource", uri);
-  assert.equal(
-    vscode.window.activeTextEditor?.document.uri.toString(),
-    uri.toString(),
-  );
   await vscode.workspace
     .getConfiguration("gorak")
     .update("frameDesigner.enabled", false, vscode.ConfigurationTarget.Global);

@@ -5,7 +5,9 @@ const executable = await downloadAndUnzipVSCode(
 );
 const failures = [];
 for (const script of [
-  "test-host.mjs",
+  // Each invocation creates a fresh VS Code profile. Keep every failure: these
+  // are independent runs to catch Windows focus races, not retries until green.
+  ...Array(process.platform === "win32" ? 5 : 1).fill("test-host.mjs"),
   "test-designer.mjs",
   "test-restart.mjs",
   "test-installed.mjs",

@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
+const traceHistory = process.env.GORAK_TEST_TRACE_HISTORY === "1";
 const output = await fs.mkdtemp(path.join(os.tmpdir(), "gorak-editor-test-"));
 await build({
   entryPoints: ["test/extension-host.ts"],
@@ -23,6 +24,7 @@ const child = spawn(
     "--skip-welcome",
     "--skip-release-notes",
     "--disable-extensions",
+    ...(traceHistory ? ["--log=trace"] : []),
     `--user-data-dir=${path.join(output, "profile")}`,
     `--extensions-dir=${path.join(output, "extensions")}`,
     `--extensionDevelopmentPath=${root}`,
@@ -44,6 +46,19 @@ child.on("error", (error) => {
 child.on("exit", async (code) => {
   clearTimeout(timeout);
   try {
+    if (traceHistory) {
+      const logs = path.join(output, "profile", "logs");
+      for (const file of await fs.readdir(logs, { recursive: true })) {
+        if (path.basename(file) !== "renderer.log") continue;
+        const log = await fs.readFile(path.join(logs, file), "utf8");
+        console.log(
+          log
+            .split(/\r?\n/)
+            .filter((line) => /Command '(undo|redo)'/.test(line))
+            .join("\n"),
+        );
+      }
+    }
     const result = JSON.parse(
       await fs.readFile(path.join(output, "result.json"), "utf8"),
     );
