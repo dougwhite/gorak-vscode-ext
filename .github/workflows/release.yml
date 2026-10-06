@@ -84,5 +84,10 @@ jobs:
           sha256sum -c SHA256SUMS
       - env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          gh release create "$GITHUB_REF_NAME" release/*.vsix release/SHA256SUMS --verify-tag --prerelease --title "gorak OpenROAD $GITHUB_REF_NAME alpha" --notes "Install the VSIX matching your extension host via Extensions: Install from VSIX, then reload. The native server is bundled. Windows x64 is the primary target. See README for alpha limitations and recovery commands."
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" release/*.vsix release/SHA256SUMS --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" release/*.vsix release/SHA256SUMS --verify-tag --prerelease --title "gorak OpenROAD $GITHUB_REF_NAME alpha" --notes "Install the VSIX matching your extension host via Extensions: Install from VSIX, then reload. The native server is bundled. Windows x64 is the primary target. See README for alpha limitations and recovery commands."
+          fi
