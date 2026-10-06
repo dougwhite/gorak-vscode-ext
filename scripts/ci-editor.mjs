@@ -12,6 +12,7 @@ for (const script of [
   "test-restart.mjs",
   "test-installed.mjs",
   "test-installed.mjs --compatibility",
+  "test-installed.mjs --compatibility --frame-template",
 ]) {
   const result = spawnSync(
     process.execPath,

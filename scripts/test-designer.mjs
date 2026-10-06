@@ -189,8 +189,28 @@ try {
       expected,
       "Only the requested geometry bytes change",
     );
+    const companion = path.join(workspace, "example/panel.w4gl");
+    const companionBefore = before.get(companion).toString("utf8");
+    const widthMarker = 'windowwidth = "6000"';
+    assert.equal(companionBefore.split(widthMarker).length, 2);
+    await frame
+      .locator("gorak-frame-designer .surface")
+      .click({ position: { x: 160, y: 150 } });
+    const width = frame.locator('input[aria-label="windowwidth"]');
+    await width.fill("7000");
+    await width.press("Tab");
+    await frame.getByText("Companion: unsaved", { exact: false }).waitFor();
+    assert.deepEqual(await fs.readFile(companion), before.get(companion));
+    await menuAction("File", "Save");
+    await frame.getByText("Companion: saved", { exact: false }).waitFor();
+    assert.equal(
+      await fs.readFile(companion, "utf8"),
+      companionBefore.replace(widthMarker, 'windowwidth = "7000"'),
+      "Companion edit preserves image metadata, component kind and script bytes",
+    );
+    assert.deepEqual(await fs.readFile(file), expected);
     for (const [name, bytes] of before) {
-      if (name !== file)
+      if (name !== file && name !== companion)
         assert.deepEqual(
           await fs.readFile(name),
           bytes,
@@ -202,7 +222,7 @@ try {
       .page()
       .screenshot({ path: path.join(output, "compatibility.png") });
     console.log(
-      `Installed designer compatibility passed: upstream field edit, dirty state, undo/redo, save, exact source preservation. Screenshot: ${output}/compatibility.png`,
+      `Installed designer compatibility passed: upstream field and companion edits, dirty state, undo/redo, save, exact source preservation. Screenshot: ${output}/compatibility.png`,
     );
   } else {
     await x.fill("750");

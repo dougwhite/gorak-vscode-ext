@@ -10,6 +10,9 @@ import { build } from "esbuild";
 import { downloadAndUnzipVSCode } from "@vscode/test-electron";
 import { checkout, verifyCheckout } from "./compatibility-pin.mjs";
 const compatibility = process.argv.includes("--compatibility");
+const template = process.argv.includes("--frame-template");
+if (template && !compatibility)
+  throw Error("Frame template checks require --compatibility");
 if (compatibility) verifyCheckout();
 const executable =
   process.env.VSCODE_EXECUTABLE ?? (await downloadAndUnzipVSCode("stable"));
@@ -23,6 +26,21 @@ await fs.cp(
   workspace,
   { recursive: true },
 );
+if (template) {
+  const panel = path.join(workspace, "example/panel.w4gl");
+  const source = await fs.readFile(panel, "utf8");
+  assert.ok(source.includes("[framesource]"));
+  const newline = source.includes("\r\n") ? "\r\n" : "\n";
+  await fs.writeFile(
+    panel,
+    source
+      .replace("[framesource]", "[frametemplate]")
+      .replace(
+        "current_count.value = 0;",
+        `current_count.value = 0;${newline}    CALLFRAME panel();`,
+      ),
+  );
+}
 const extensions = path.join(output, "extensions");
 const profile = path.join(output, "profile");
 const { version } = JSON.parse(await fs.readFile("package.json", "utf8"));
@@ -195,6 +213,7 @@ try {
           env: {
             ...process.env,
             GORAK_FIXTURE_ROOT: workspace,
+            GORAK_TEMPLATE_CERTIFICATION: template ? "1" : "0",
             GORAK_EXPECTED_VERSION: expected,
             GORAK_INSTALLED_PHASE: phase,
             GORAK_TEST_OUTPUT: output,
