@@ -43,11 +43,12 @@ test("ecosystem guards reject dependency drift and missing, dirty or wrong fixtu
     }
     await fs.writeFile(path.join(root, "ecosystem.toml"), original);
     assert.throws(() => run(checkout), /Command failed/);
+    const sourceVersion = Number(/^source_version = (\d+)/m.exec(original)![1]);
     await fs.mkdir(path.join(root, ".ci/gorak"), { recursive: true });
     git("init", ".ci/gorak");
     await fs.writeFile(
       path.join(root, ".ci/gorak/ecosystem.toml"),
-      "source_version = 1\n",
+      `source_version = ${sourceVersion}\n`,
     );
     git("-C", ".ci/gorak", "add", ".");
     git(
@@ -69,7 +70,7 @@ test("ecosystem guards reject dependency drift and missing, dirty or wrong fixtu
     await fs.rm(path.join(root, ".ci/gorak/untracked"));
     await fs.writeFile(
       path.join(root, ".ci/gorak/ecosystem.toml"),
-      "source_version = 2\n",
+      `source_version = ${sourceVersion + 1}\n`,
     );
     assert.throws(() => run(checkout), /local changes/);
     git("-C", ".ci/gorak", "add", ".");

@@ -37,8 +37,8 @@ export async function run() {
   const wml = await open("example/panel.wml");
   await vscode.window.showTextDocument(wml);
   assert.equal(wml.languageId, "gorak-wml");
-  const position = (doc: vscode.TextDocument, needle: string) => {
-    const offset = doc.getText().indexOf(needle);
+  const position = (doc: vscode.TextDocument, needle: string, from = 0) => {
+    const offset = doc.getText().indexOf(needle, from);
     assert.ok(offset >= 0, `Upstream fixture marker: ${needle}`);
     return doc.positionAt(offset);
   };
@@ -84,16 +84,30 @@ export async function run() {
     if ("location" in symbol)
       assert.equal(symbol.location.uri.fsPath, doc.uri.fsPath);
     assert.deepEqual(range.start, position(doc, start));
-    assert.deepEqual(range.end, position(doc, end).translate(0, 1));
+    assert.deepEqual(
+      range.end,
+      position(doc, end, doc.offsetAt(position(doc, start))).translate(0, 1),
+    );
     assert.equal(
       doc.getText(range),
       doc
         .getText()
         .slice(
           doc.offsetAt(position(doc, start)),
-          doc.offsetAt(position(doc, end)) + 1,
+          doc.offsetAt(position(doc, end, doc.offsetAt(position(doc, start)))) +
+            1,
         ),
     );
+  }
+  if (process.env.GORAK_TEMPLATE_CERTIFICATION === "1") {
+    const definitions = await vscode.commands.executeCommand<vscode.Location[]>(
+      "vscode.executeDefinitionProvider",
+      panel.uri,
+      position(panel, "panel();"),
+    );
+    assert.equal(definitions?.length, 1, "Frame template binding");
+    assert.equal(definitions![0].uri.fsPath, panel.uri.fsPath);
+    assert.equal(panel.getText(definitions![0].range), "frametemplate");
   }
   await vscode.commands.executeCommand("gorak.openFrameDesigner", wml.uri);
   assert.ok(
@@ -121,7 +135,8 @@ export async function run() {
       passed: true,
       phase: "compatibility",
       activation: true,
-      definitions: 3,
+      definitions: process.env.GORAK_TEMPLATE_CERTIFICATION === "1" ? 4 : 3,
+      frameTemplate: process.env.GORAK_TEMPLATE_CERTIFICATION === "1",
       outline: 2,
       designerAndRawSource: true,
     }),
