@@ -14,3 +14,6 @@
 !schemas/**
 
 !dist/frame-webview.js
+
+!icons/**
+!project-language-configuration.json

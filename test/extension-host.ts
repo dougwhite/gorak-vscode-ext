@@ -1,3 +1,4 @@
+import { testFileIcons } from "./file-icons-host";
 import { testFrameEditor } from "./frame-editor-host";
 import * as vscode from "vscode";
 import assert from "node:assert/strict";
@@ -5,6 +6,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 
 export async function run() {
+  await testFileIcons();
   const extension = vscode.extensions.getExtension(
     "dougwhite.gorak-vscode-ext",
   );
