@@ -1,14 +1,16 @@
 # Upstream compatibility
 
-`ecosystem.toml` pins the source contract and published dependencies. Run:
+`ecosystem.toml` pins source contract 12, gorak `v0.1.0-alpha.1.dev.83`,
+LSP `v0.9.0-alpha.7` and designer `v0.1.0-alpha.4`. Run:
 
 ```sh
 npm ci
 npm run fetch:server
 npm run fetch:compatibility
 npm run verify
+npm run format:check
 npm run package
-npm run test:compatibility
+node scripts/ci-editor.mjs
 ```
 
 The fetcher resolves the explicit gorak release tag into ignored `.ci/gorak`.
@@ -16,48 +18,43 @@ Certification refuses missing, dirty, wrong-tag or wrong-contract fixtures and
 copies `compatibility/project` into a disposable workspace. Never edit the checkout.
 The server manifest checksum stays in `server.json`; the designer archive integrity
 stays in `package-lock.json`. Fetch/build reject disagreement with the ecosystem pin.
+Released server/designer assets supply the implementation; sibling source checkouts
+are not used. The extension adds no source parser or independent source-version gate.
 
-The installed-extension harness installs the VSIX into an isolated profile and
-checks bundled runtime identity before testing automatic activation, language modes,
-include/embedded-script definitions, outline block locations, and designer/raw-source
-commands. The rendered-webview harness then loads that installed extension, changes
-`quantity.xleft`, checks dirty state and keyboard/menu undo/redo, saves, and compares
-all fixture bytes. It also edits and saves companion window width, preserving the
-component header, inline image metadata, and script. Only those two requested
-values may change. No source-checkout
-server or designer implementation is imported by certification.
+The installed harness installs the generated VSIX into an isolated profile and
+checks the bundled binary hash, server version, designer dependency and exact
+extension/webview build bytes. It tests activation, language modes, includes,
+embedded-script definitions and original outline locations. A frame-template
+variant verifies navigation to its W4GL header. Upstream fixtures remain pristine.
 
-The outline is an executable-block outline (`INITIALIZE`, `ON click`), not a field
-inventory. VS Code may expose flattened `SymbolInformation`; locations are checked
-against original source. Class navigation targets the `classsource` metadata header.
-Table/prototype edits, reconstruction, native Workbench behavior and full language
-coverage are outside this extension certification; standalone suites own their units.
+Independent `test/fixtures/contract12` source is copied only into that disposable
+workspace. VS Code providers must resolve native PRIVATE/default attributes and
+structured declarations, preserve original UTF-16 locations after an astral character,
+return exact references, offer member completion and report a reference-type warning
+at the original token. Safe local rename remains a preview; unsupported attribute
+rename and implicit core rename must be refused. Implicit core navigation must open
+the builtin document. Remarks, duplicate tags and empty/whitespace values remain
+unchanged. These tests exercise the released server through the installed client.
 
-`VSCODE_EXECUTABLE` selects a local editor. Otherwise the installed harness downloads
-stable VS Code. CI runs certification alongside the unchanged development, restart,
-and upgrade/rollback suites on Linux/Windows and Windows VS Code 1.93.0. A graphical
-display is required (CI uses Xvfb on Linux). Failures retain disposable profile logs;
-the rendered test prints its screenshot directory. Missing fixtures are errors, never
-skips. CI runs every editor suite and retains failure status if any suite fails.
-No database connection is made.
+The rendered designer harness loads both the upstream frame and an independent
+frame through the installed VSIX. It checks read-only inspection, hidden editing
+controls, blocked drag/delete/save/history shortcuts, zoom, Raw WML switching and
+byte preservation across every source/sidecar/image file. The independent frame
+also checks stylesheet absence, zero-size geometry, nested viewport content,
+whitespace scalar/empty row/opaque XML transport and source navigation to the
+nested field's exact selection length. The reusable component retains its editing
+capability; the extension sets readOnly and rejects writes at the host boundary.
+Development-host tests separately cover raw TextDocument editing, dirty/save state,
+viewer refresh, filename associations, icons and opt-outs.
 
-## Source contract 3
+CI runs unit/build/format/package checks, development host, rendered designer,
+restart, installed upgrade/rollback, and both installed compatibility variants on
+Linux and Windows, including Windows VS Code 1.93.0. Linux uses Xvfb; no normal user
+profile is used. Failures retain disposable logs and screenshots. Missing fixtures
+are errors. No database connection is made.
 
-The `v0.1.0-alpha.1.dev.46` fixture adds saved-query sidecars, external PNG
-references, inline window-icon metadata, and ordered class-icon entries (including
-built-in references and native image details). The designer save check compares
-all companion, sidecar and binary asset bytes, as well as the exact WML edit.
-Query-expression navigation and image rendering are not certified by these checks.
-
-CI also runs `node scripts/test-installed.mjs --compatibility --frame-template`.
-This changes only the disposable fixture's component header and adds a template
-call. Navigation must target the W4GL `frametemplate` declaration; falling back to
-the WML declaration is a failure. The same installed designer acceptance then runs
-against that template. The canonical upstream checkout remains unchanged.
-
-The required dependency versions are LSP `v0.9.0-alpha.6` and designer
-`v0.1.0-alpha.2`. Earlier releases fail frame-template acceptance. Certification
-uses the pinned published assets, with checksum and package-integrity validation;
-source-checkout passes cannot substitute for installed-VSIX checks. CI requires
-both canonical and template variants on Linux and Windows, including the minimum
-supported Windows editor version.
+This certifies editor integration. Native Workbench import/edit acceptance,
+reconstruction, query authoring and full OpenROAD language coverage remain outside
+this extension's scope. CI-installed host evidence is separate from a human's
+interactive desktop acceptance; neither source tests nor installation alone proves
+that acceptance. Merging, tagging and publishing require owner authorization.

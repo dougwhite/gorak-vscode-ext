@@ -1,4 +1,4 @@
-source_version = 3
-gorak_revision = "v0.1.0-alpha.1.dev.46"
-lsp_revision = "v0.9.0-alpha.6"
-frame_designer_revision = "v0.1.0-alpha.3.readonly.1"
+source_version = 12
+gorak_revision = "v0.1.0-alpha.1.dev.83"
+lsp_revision = "v0.9.0-alpha.7"
+frame_designer_revision = "v0.1.0-alpha.4"

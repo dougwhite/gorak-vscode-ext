@@ -27,6 +27,12 @@ await fs.cp(
   workspace,
   { recursive: true },
 );
+if (compatibility) {
+  await fs.copyFile(
+    "test/fixtures/contract12/member_probe.w4gl",
+    path.join(workspace, "example/member_probe.w4gl"),
+  );
+}
 if (template) {
   const panel = path.join(workspace, "example/panel.w4gl");
   const source = await fs.readFile(panel, "utf8");
@@ -35,7 +41,9 @@ if (template) {
   await fs.writeFile(
     panel,
     source
-      .replace("[framesource]", "[frametemplate]")
+      // Nested macro tables belong to the component too; retaining their old
+      // prefix creates a second framesource table instead of a template fixture.
+      .replace(/^(\[\[?)framesource(?=[.\]])/gm, "$1frametemplate")
       .replace(
         "current_count.value = 0;",
         `current_count.value = 0;${newline}    CALLFRAME panel();`,
@@ -257,11 +265,33 @@ try {
         timeout: 120000,
       },
     );
+    const independentDesigner = spawnSync(
+      process.execPath,
+      ["scripts/test-designer.mjs"],
+      {
+        stdio: "inherit",
+        env: {
+          ...process.env,
+          VSCODE_EXECUTABLE: executable,
+          GORAK_INSTALLED_EXTENSION: installedPath,
+        },
+        timeout: 120000,
+      },
+    );
+    if (independentDesigner.status !== 0)
+      throw Error("Installed contract-12 designer failed");
     verifyCheckout();
     if (designer.status !== 0)
       throw Error("Installed designer compatibility failed");
   }
-  await fs.rm(output, { recursive: true, force: true });
+  // Windows may retain the executable handle briefly after the last isolated
+  // editor exits. Retry only cleanup, never an acceptance assertion or suite.
+  await fs.rm(output, {
+    recursive: true,
+    force: true,
+    maxRetries: 10,
+    retryDelay: 200,
+  });
 } catch (error) {
   console.error(`Installed acceptance logs: ${output}`);
   throw error;
