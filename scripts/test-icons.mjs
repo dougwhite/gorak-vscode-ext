@@ -1,3 +1,4 @@
+import "./test-display.mjs";
 // Disposable extension host: JSON delegation plus real workbench icon CSS/highlighting.
 import { build } from "esbuild";
 import { spawn, spawnSync } from "node:child_process";
@@ -170,13 +171,7 @@ for (const [phase, colorTheme, iconTheme] of [
       const rows = [];
       for (const variant of ["light", "dark"]) {
         const icons = [];
-        for (const name of [
-          "w4gl",
-          "wml",
-          "project",
-          "metadata",
-          "field-defaults",
-        ]) {
+        for (const name of ["w4gl", "wml", "project"]) {
           const svg = await fs.readFile(
             path.join(extension, "icons", variant, `${name}.svg`),
           );

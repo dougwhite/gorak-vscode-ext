@@ -1,3 +1,4 @@
+import "./test-display.mjs";
 // Real webview interaction in a disposable VS Code profile, on Linux and Windows.
 import { chromium } from "playwright-core";
 import { spawn } from "node:child_process";

@@ -1,3 +1,4 @@
+import "./test-display.mjs";
 import { downloadAndUnzipVSCode } from "@vscode/test-electron";
 import { spawnSync } from "node:child_process";
 const executable = await downloadAndUnzipVSCode(

@@ -29,14 +29,17 @@ test("file icons keep associations narrow and delegate JSON to VS Code", async (
       );
     }
   }
+  assert.equal(manifest.icon, "icons/gorak.png");
+  const logo = await fs.readFile(manifest.icon);
+  assert.equal(logo.readUInt32BE(16), 256);
+  assert.equal(logo.readUInt32BE(20), 256);
   for (const variant of ["light", "dark"]) {
-    for (const name of [
-      "w4gl",
-      "wml",
-      "project",
-      "metadata",
-      "field-defaults",
-    ]) {
+    assert.deepEqual((await fs.readdir(`icons/${variant}`)).sort(), [
+      "project.svg",
+      "w4gl.svg",
+      "wml.svg",
+    ]);
+    for (const name of ["w4gl", "wml", "project"]) {
       const svg = await fs.readFile(`icons/${variant}/${name}.svg`, "utf8");
       assert.ok(svg.includes("<svg"));
       assert.ok(!/<(?:script|image)\b|https?:\/\/(?!www.w3.org)/.test(svg));

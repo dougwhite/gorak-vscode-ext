@@ -278,5 +278,6 @@
   },
   "extensionDependencies": [
     "vscode.json-language-features"
-  ]
+  ],
+  "icon": "icons/gorak.png"
 }

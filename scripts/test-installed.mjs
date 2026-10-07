@@ -1,3 +1,4 @@
+import "./test-display.mjs";
 // Exercise actual VSIX installation, upgrade and rollback in a disposable profile.
 import fs from "node:fs/promises";
 import assert from "node:assert/strict";
