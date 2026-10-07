@@ -97,6 +97,9 @@ try {
     if (Date.now() > deadline) throw Error("Designer webview did not load");
     if (!frame) await new Promise((r) => setTimeout(r, 100));
   }
+  // Element attachment precedes the asynchronous host state message on Windows.
+  // Read-only status is published only after the document model is assigned.
+  await frame.getByText("Read only", { exact: false }).waitFor();
   if (!compatibility) {
     const model = await frame
       .locator("gorak-frame-designer")
@@ -135,7 +138,6 @@ try {
     await frame.getByRole("button", { name: menu, exact: true }).click();
     await frame.getByRole("menuitem", { name: item, exact: true }).click();
   };
-  await frame.getByText("Read only", { exact: false }).waitFor();
   for (const menu of ["File", "Edit", "Group"])
     assert.equal(
       await frame.getByRole("button", { name: menu, exact: true }).count(),
