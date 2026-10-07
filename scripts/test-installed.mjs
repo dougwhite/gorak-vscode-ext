@@ -41,7 +41,9 @@ if (template) {
   await fs.writeFile(
     panel,
     source
-      .replace("[framesource]", "[frametemplate]")
+      // Nested macro tables belong to the component too; retaining their old
+      // prefix creates a second framesource table instead of a template fixture.
+      .replace(/^(\[\[?)framesource(?=[.\]])/gm, "$1frametemplate")
       .replace(
         "current_count.value = 0;",
         `current_count.value = 0;${newline}    CALLFRAME panel();`,
