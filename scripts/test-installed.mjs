@@ -284,7 +284,14 @@ try {
     if (designer.status !== 0)
       throw Error("Installed designer compatibility failed");
   }
-  await fs.rm(output, { recursive: true, force: true });
+  // Windows may retain the executable handle briefly after the last isolated
+  // editor exits. Retry only cleanup, never an acceptance assertion or suite.
+  await fs.rm(output, {
+    recursive: true,
+    force: true,
+    maxRetries: 10,
+    retryDelay: 200,
+  });
 } catch (error) {
   console.error(`Installed acceptance logs: ${output}`);
   throw error;

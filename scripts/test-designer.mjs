@@ -218,7 +218,19 @@ try {
       new Promise((r) => setTimeout(r, 2000)),
     ]);
   }
-  child.kill();
+  if (child.exitCode === null && child.signalCode === null) {
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(Error("Designer editor did not exit")),
+        10000,
+      );
+      child.once("exit", () => {
+        clearTimeout(timer);
+        resolve();
+      });
+      child.kill();
+    });
+  }
 }
 
 // Electron can retain debugging transport handles after its window closes.
