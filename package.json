@@ -36,7 +36,11 @@
         "extensions": [
           ".w4gl"
         ],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/light/w4gl.svg",
+          "dark": "./icons/dark/w4gl.svg"
+        }
       },
       {
         "id": "gorak-wml",
@@ -46,7 +50,25 @@
         "extensions": [
           ".wml"
         ],
-        "configuration": "./wml-language-configuration.json"
+        "configuration": "./wml-language-configuration.json",
+        "icon": {
+          "light": "./icons/light/wml.svg",
+          "dark": "./icons/dark/wml.svg"
+        }
+      },
+      {
+        "id": "gorak-project",
+        "aliases": [
+          "gorak Project (JSON)"
+        ],
+        "filenames": [
+          "gorak.json"
+        ],
+        "configuration": "./project-language-configuration.json",
+        "icon": {
+          "light": "./icons/light/project.svg",
+          "dark": "./icons/dark/project.svg"
+        }
       }
     ],
     "grammars": [
@@ -66,6 +88,11 @@
         "embeddedLanguages": {
           "meta.embedded.block.openroad": "gorak-openroad"
         }
+      },
+      {
+        "language": "gorak-project",
+        "scopeName": "source.json.gorak-project",
+        "path": "./syntaxes/project.tmLanguage.json"
       }
     ],
     "commands": [
@@ -170,6 +197,12 @@
           "**/*.fielddefaults.json"
         ],
         "url": "./schemas/native-styles.schema.json"
+      },
+      {
+        "fileMatch": [
+          "**/gorak.json"
+        ],
+        "url": "./schemas/project.schema.json"
       }
     ],
     "customEditors": [
@@ -183,7 +216,21 @@
         ],
         "priority": "default"
       }
-    ]
+    ],
+    "jsonLanguageParticipants": [
+      {
+        "languageId": "gorak-project",
+        "comments": false
+      }
+    ],
+    "configurationDefaults": {
+      "[gorak-project]": {
+        "editor.quickSuggestions": {
+          "strings": true
+        },
+        "editor.suggest.insertMode": "replace"
+      }
+    }
   },
   "scripts": {
     "build": "node esbuild.mjs",
@@ -201,7 +248,8 @@
     "test:installed": "node scripts/test-installed.mjs",
     "test:designer": "npm run build && node scripts/test-designer.mjs",
     "fetch:compatibility": "node scripts/fetch-compatibility.mjs",
-    "test:compatibility": "node scripts/test-installed.mjs --compatibility"
+    "test:compatibility": "node scripts/test-installed.mjs --compatibility",
+    "test:icons": "npm run build && node scripts/test-icons.mjs"
   },
   "dependencies": {
     "gorak-frame-designer": "https://github.com/dougwhite/gorak-frame-designer/releases/download/v0.1.0-alpha.2/gorak-frame-designer-0.1.0-alpha.2.tgz",
@@ -227,5 +275,8 @@
   },
   "bugs": {
     "url": "https://github.com/dougwhite/gorak-vscode-ext/issues"
-  }
+  },
+  "extensionDependencies": [
+    "vscode.json-language-features"
+  ]
 }
