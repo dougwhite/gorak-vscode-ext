@@ -17,9 +17,10 @@ details page, including Marketplace presentation when published.
 These are language fallback icons; the selected icon theme may override or
 suppress them. The extension does not change the user's themes or settings.
 
-`gorak.json` uses `gorak-project`, delegating completion, strict JSON validation
-and formatting to VS Code's built-in JSON extension. Highlighting includes the
-built-in JSON grammar. `[json]` editor settings and third-party tools selecting
-only `json` do not automatically apply: use `[gorak-project]` preferences or a
-combined `[json][gorak-project]` section. Explicitly associating `gorak.json`
-with `json` restores JSON-only tools and the ordinary JSON icon.
+`gorak.json` uses `gorak-project` by default, delegating strict JSON services
+and highlighting to VS Code's built-in JSON support. Disable
+`gorak.projectFileIcon.enabled` in Settings to restore ordinary JSON mode,
+JSON-only extensions and `[json]` preferences. The resource-scoped setting
+updates open and newly opened project files without changing their contents.
+Explicit `files.associations` overrides take precedence in either mode.
+The project schema remains available in both modes.

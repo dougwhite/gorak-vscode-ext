@@ -73,10 +73,11 @@ const host = spawnSync(
   },
 );
 assert.equal(host.status, 0, `JSON acceptance: ${output}`);
-for (const [phase, colorTheme, iconTheme] of [
+for (const [phase, colorTheme, iconTheme, enabled = true] of [
   ["dark", "Default Dark Modern", "vs-seti"],
   ["light", "Default Light Modern", "vs-seti"],
   ["theme-suppression", "Default Light Modern", "vs-minimal"],
+  ["json-opt-out", "Default Dark Modern", "vs-seti", false],
 ]) {
   const profile = path.join(output, phase);
   await fs.mkdir(path.join(profile, "User"), { recursive: true });
@@ -85,6 +86,7 @@ for (const [phase, colorTheme, iconTheme] of [
     JSON.stringify({
       "workbench.colorTheme": colorTheme,
       "workbench.iconTheme": iconTheme,
+      "gorak.projectFileIcon.enabled": enabled,
     }),
   );
   const child = spawn(
@@ -152,10 +154,25 @@ for (const [phase, colorTheme, iconTheme] of [
         .locator(".monaco-list-row .monaco-icon-label")
         .filter({ hasText: new RegExp(`^${filename.replaceAll(".", "\\.")}$`) })
         .first();
+      if (phase === "json-opt-out" && icon === "project") {
+        const ordinary = page
+          .locator(".monaco-list-row .monaco-icon-label")
+          .filter({ hasText: /^ordinary\.json$/ })
+          .first();
+        const style = (el) => {
+          const s = getComputedStyle(el, "::before");
+          return JSON.stringify([s.backgroundImage, s.content, s.fontFamily]);
+        };
+        await until(
+          async () =>
+            (await label.evaluate(style)) === (await ordinary.evaluate(style)),
+        );
+        continue;
+      }
       const expected =
         phase === "theme-suppression"
           ? "document-light.svg"
-          : `/icons/${phase}/${icon}.svg`;
+          : `/icons/${phase === "json-opt-out" ? "dark" : phase}/${icon}.svg`;
       await until(async () =>
         (
           await label.evaluate(

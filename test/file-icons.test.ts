@@ -29,6 +29,13 @@ test("file icons keep associations narrow and delegate JSON to VS Code", async (
       );
     }
   }
+  const option =
+    manifest.contributes.configuration.properties[
+      "gorak.projectFileIcon.enabled"
+    ];
+  assert.equal(option.type, "boolean");
+  assert.equal(option.default, true);
+  assert.equal(option.scope, "resource");
   assert.equal(manifest.icon, "icons/gorak.png");
   const logo = await fs.readFile(manifest.icon);
   assert.equal(logo.readUInt32BE(16), 256);

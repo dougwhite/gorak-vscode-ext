@@ -159,6 +159,12 @@
           "default": true,
           "scope": "resource",
           "description": "Open WML files in the frame designer. Disable to use the raw text editor."
+        },
+        "gorak.projectFileIcon.enabled": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "markdownDescription": "Use the gorak ork language fallback icon for `gorak.json` by selecting the custom `gorak-project` language mode. Disable to restore normal JSON extension and `[json]` settings compatibility. Explicit `files.associations` overrides take precedence; your selected icon theme is unchanged."
         }
       }
     },
