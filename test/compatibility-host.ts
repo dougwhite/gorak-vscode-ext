@@ -1,3 +1,4 @@
+import { testContract12 } from "./contract12-host";
 // Only VS Code APIs: the server and designer must come from the installed VSIX.
 import * as vscode from "vscode";
 import assert from "node:assert/strict";
@@ -34,6 +35,7 @@ export async function run() {
     assert.ok(Date.now() < deadline, "Bundled server indexes upstream project");
     await new Promise((r) => setTimeout(r, 50));
   }
+  await testContract12(root);
   const wml = await open("example/panel.wml");
   await vscode.window.showTextDocument(wml);
   assert.equal(wml.languageId, "gorak-wml");
@@ -139,6 +141,7 @@ export async function run() {
       frameTemplate: process.env.GORAK_TEMPLATE_CERTIFICATION === "1",
       outline: 2,
       designerAndRawSource: true,
+      contract12MembersUtf16DiagnosticsCompletionRenameCore: true,
     }),
   );
 }

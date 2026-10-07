@@ -27,6 +27,12 @@ await fs.cp(
   workspace,
   { recursive: true },
 );
+if (compatibility) {
+  await fs.copyFile(
+    "test/fixtures/contract12/member_probe.w4gl",
+    path.join(workspace, "example/member_probe.w4gl"),
+  );
+}
 if (template) {
   const panel = path.join(workspace, "example/panel.w4gl");
   const source = await fs.readFile(panel, "utf8");
@@ -257,6 +263,21 @@ try {
         timeout: 120000,
       },
     );
+    const independentDesigner = spawnSync(
+      process.execPath,
+      ["scripts/test-designer.mjs"],
+      {
+        stdio: "inherit",
+        env: {
+          ...process.env,
+          VSCODE_EXECUTABLE: executable,
+          GORAK_INSTALLED_EXTENSION: installedPath,
+        },
+        timeout: 120000,
+      },
+    );
+    if (independentDesigner.status !== 0)
+      throw Error("Installed contract-12 designer failed");
     verifyCheckout();
     if (designer.status !== 0)
       throw Error("Installed designer compatibility failed");

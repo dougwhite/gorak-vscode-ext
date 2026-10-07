@@ -1,0 +1,18 @@
+[classsource]
+superclass = "userobject"
+[attributes]
+balance = "PRIVATE INTEGER NOT NULL DEFAULT 7"
+caption = { declaration = "VARCHAR(32) NOT NULL DEFAULT 'ready'", remark = "Independent 😀 label", taggedvalues = [{ name = "hint", value = "" }, { name = "hint", value = "  " }] }
+[methods]
+Summarize = { declaration = "PRIVATE METHOD RETURNING VARCHAR(32) NOT NULL", remark = "Metadata-only declaration", taggedvalues = [{ name = "hint", value = "" }] }
+ReadCaption = { declaration = "PRIVATE METHOD RETURNING VARCHAR(32) NOT NULL", remark = "Keep this remark", taggedvalues = [{ name = "opaque", value = "keep" }] }
+===
+METHOD ReadCaption() = DECLARE
+    buffer = StringObject;
+    picture = BitmapObject;
+{
+    MESSAGE '😀'; self.balance = self.balance + 1;
+    buffer = picture;
+    MESSAGE self.Summarize();
+    RETURN self.caption;
+}

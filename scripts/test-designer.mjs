@@ -22,11 +22,11 @@ if (compatibility) {
 } else {
   await fs.mkdir(workspace);
   original =
-    '<frame><!-- retained 😀 --><topform width="6500" height="4000"><entryfield name="caption" xleft="250" ytop="250" width="1200" height="350"/><entryfield name="second" xleft="2000" ytop="1000" width="800" height="350"/></topform></frame>\r\n';
+    '<frame><!-- retained 😀 --><topform width="6500" height="4000"><entryfield name="caption" xleft="250" ytop="250" width="1200" height="350"/><entryfield name="zero" width="0" height="0"><defaultstring>  </defaultstring><opaque><row/><row> </row></opaque></entryfield><viewportfield name="viewport" xleft="3500" ytop="500" width="1500" height="1200"><viewfield type="flexibleform" name="content" width="1200" height="1000"><entryfield name="inside" width="500" height="250"/></viewfield></viewportfield><entryfield name="second" xleft="2000" ytop="1000" width="800" height="350"/></topform></frame>\r\n';
   await fs.writeFile(file, original);
   await fs.writeFile(
     path.join(workspace, "sample.w4gl"),
-    '[framesource]\nwindowwidth = "6500"\nwindowheight = "4000"\n\n===\n// opaque script\n',
+    '[framesource]\nwindowwidth = "6500"\nwindowheight = "4000"\n\n===\n// opaque script\n// preserve 😀 metadata\n',
   );
 }
 const before = new Map();
@@ -97,6 +97,40 @@ try {
     if (Date.now() > deadline) throw Error("Designer webview did not load");
     if (!frame) await new Promise((r) => setTimeout(r, 100));
   }
+  if (!compatibility) {
+    const model = await frame
+      .locator("gorak-frame-designer")
+      .evaluate((designer) => {
+        const doc = designer.document;
+        return {
+          readOnly: designer.readOnly,
+          fields: doc.fields,
+          text: doc.source.text,
+          metadata: doc.metadata.text,
+        };
+      });
+    assert.equal(model.readOnly, true);
+    assert.equal(
+      model.text,
+      original,
+      "Whitespace, empty rows and opaque XML survive host transport",
+    );
+    const zero = model.fields.find((f) => f.name === "zero");
+    assert.ok(zero, "Zero-size field remains represented");
+    assert.equal(zero.width, 0);
+    assert.equal(zero.height, 0);
+    assert.equal(zero.properties.defaultstring, "  ");
+    assert.ok(
+      model.fields.some((f) => f.name === "inside"),
+      "Viewport content remains inspectable",
+    );
+    assert.match(model.metadata, /preserve 😀 metadata/);
+    assert.equal(
+      await frame.locator("#error").textContent(),
+      "",
+      "Stylesheet absence is accepted",
+    );
+  }
   const menuAction = async (menu, item) => {
     await frame.getByRole("button", { name: menu, exact: true }).click();
     await frame.getByRole("menuitem", { name: item, exact: true }).click();
@@ -142,7 +176,19 @@ try {
       `Viewer preserves ${name}`,
     );
   await frame.page().screenshot({ path: path.join(output, "viewer.png") });
-  await menuAction("View", "Raw WML");
+  if (!compatibility) {
+    const span = await frame
+      .locator("gorak-frame-designer")
+      .evaluate((designer) => {
+        const child = designer.document.fields.find((f) => f.name === "inside");
+        designer.requestSourceNavigation(child.id);
+        return child.source;
+      });
+    const selection = page.locator('[id="status.editor.selection"]');
+    await selection
+      .filter({ hasText: `${span.end - span.start} selected` })
+      .waitFor();
+  } else await menuAction("View", "Raw WML");
   await page.locator(".monaco-editor textarea").first().waitFor();
   console.log(
     `Read-only designer passed: inspection, zoom, blocked edits and shortcuts, source switching, exact file preservation. Screenshot: ${output}/viewer.png`,
