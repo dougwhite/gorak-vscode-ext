@@ -31,7 +31,9 @@ export function verifyDependencies(installed = false) {
   const pkg = JSON.parse(read("package.json"));
   const lock = JSON.parse(read("package-lock.json"));
   const version = ecosystem.frame_designer_revision.slice(1);
-  const archive = `https://github.com/dougwhite/gorak-frame-designer/releases/download/v${version}/gorak-frame-designer-${version}.tgz`;
+  const archive = ecosystem.frame_designer_archive
+    ? `file:${ecosystem.frame_designer_archive}`
+    : `https://github.com/dougwhite/gorak-frame-designer/releases/download/v${version}/gorak-frame-designer-${version}.tgz`;
   const dependency = lock.packages["node_modules/gorak-frame-designer"];
   if (
     pkg.dependencies["gorak-frame-designer"] !== archive ||

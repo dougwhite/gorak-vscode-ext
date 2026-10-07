@@ -658,7 +658,7 @@ export async function run() {
       {
         passed: true,
         checks: [
-          "frame-designer-default-source-disable-dirty-save-companion-undo-stale-edits",
+          "frame-viewer-default-source-disable-reject-writes-live-refresh",
           "native-stylesheet-completion",
           "native-column-prototype-hover",
           "native-wml-pi-navigation",
