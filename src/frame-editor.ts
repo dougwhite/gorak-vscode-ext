@@ -86,7 +86,7 @@ html,body{height:100%;margin:0;background:#202733;color:#dce3ee;font:12px Arial,
 #status{margin-left:auto;padding:0 8px;color:#a9b4c6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #error{color:var(--vscode-errorForeground);padding:0 8px;white-space:pre-wrap}#error:empty{display:none}
 gorak-frame-designer{display:block;flex:1;min-height:0}
-</style></head><body><nav class="menubar" aria-label="Frame editor"><span id="status" role="status"></span></nav><div id="error" role="alert"></div><script nonce="${nonce}" src="${script}"></script></body></html>`;
+</style></head><body><nav class="menubar" aria-label="Frame viewer"><span id="status" role="status"></span></nav><div id="error" role="alert"></div><script nonce="${nonce}" src="${script}"></script></body></html>`;
     const report = (error: unknown) =>
       panel.webview.postMessage({
         type: "error",
@@ -206,6 +206,12 @@ gorak-frame-designer{display:block;flex:1;min-height:0}
         queue = queue
           .then(async () => {
             if (disposed) return;
+            // This release always uses viewer mode. Do not trust webview state
+            // to authorize writes, saves or document history commands.
+            if (["edit", "save", "undo", "redo"].includes(message.type))
+              throw Error(
+                "The frame viewer is read only. Use Raw WML to edit source.",
+              );
             if (message.type === "source") {
               const editor = await vscode.window.showTextDocument(document, {
                 viewColumn: panel.viewColumn,

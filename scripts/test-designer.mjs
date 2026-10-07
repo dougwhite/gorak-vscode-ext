@@ -1,3 +1,4 @@
+import "./test-display.mjs";
 // Real webview interaction in a disposable VS Code profile, on Linux and Windows.
 import { chromium } from "playwright-core";
 import { spawn } from "node:child_process";
@@ -36,7 +37,7 @@ async function snapshot(directory) {
     else before.set(name, await fs.readFile(name));
   }
 }
-if (compatibility) await snapshot(workspace);
+await snapshot(workspace);
 const initialX = compatibility ? "200" : "250";
 const listener = net.createServer();
 await new Promise((resolve) => listener.listen(0, "127.0.0.1", resolve));
@@ -100,185 +101,52 @@ try {
     await frame.getByRole("button", { name: menu, exact: true }).click();
     await frame.getByRole("menuitem", { name: item, exact: true }).click();
   };
-  await frame.getByRole("button", { name: "Group", exact: true }).click();
+  await frame.getByText("Read only", { exact: false }).waitFor();
+  for (const menu of ["File", "Edit", "Group"])
+    assert.equal(
+      await frame.getByRole("button", { name: menu, exact: true }).count(),
+      0,
+    );
   assert.equal(
-    await frame
-      .getByRole("menuitem", { name: "Tablefield", exact: true })
-      .isDisabled(),
-    true,
+    await frame.locator("gorak-frame-designer .palette").isVisible(),
+    false,
   );
-  await page.keyboard.press("ArrowDown");
-  await page.keyboard.press("Escape");
-  await frame
-    .getByRole("menu", { name: "Group", exact: true })
-    .waitFor({ state: "hidden" });
   await frame.locator("gorak-frame-designer .field").first().click();
   const x = frame.locator('input[aria-label="xleft"]');
-  await x.fill("500");
-  await x.press("Tab");
-  await frame.getByText("WML: unsaved", { exact: false }).waitFor();
-  assert.equal(await fs.readFile(file, "utf8"), original);
-  const tabsBeforeUndo = await page.locator(".tabs-container .tab").count();
-  await frame.locator("gorak-frame-designer .field").first().click();
-  await page.keyboard.press("Control+z");
-  await frame.waitForFunction(
-    (expected) =>
-      document
-        .querySelector("gorak-frame-designer")
-        ?.shadowRoot?.querySelector('input[aria-label="xleft"]')?.value ===
-      expected,
-    initialX,
-  );
+  assert.equal(await x.isDisabled(), true);
+  assert.equal(await x.inputValue(), initialX);
+  assert.equal(await frame.locator("gorak-frame-designer .handle").count(), 0);
+  const field = frame.locator("gorak-frame-designer .field").first();
+  const bounds = await field.boundingBox();
+  await page.mouse.move(bounds.x + 4, bounds.y + 4);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + 50, bounds.y + 50);
+  await page.mouse.up();
+  for (const key of ["Delete", "Control+z", "Control+y", "Control+s"])
+    await page.keyboard.press(key);
+  assert.equal(await x.inputValue(), initialX);
+  await frame.getByRole("button", { name: "Zoom in", exact: true }).click();
+  await frame.getByRole("button", { name: "Actual size", exact: true }).click();
+  await frame
+    .getByRole("combobox", { name: "Selected object", exact: true })
+    .selectOption("");
   assert.equal(
-    await page.locator(".tabs-container .tab").count(),
-    tabsBeforeUndo,
-    "Ctrl+Z must not open a source tab",
+    await frame.locator('input[aria-label="windowwidth"]').isDisabled(),
+    true,
   );
-  await page.keyboard.press("Control+y");
-  await frame.waitForFunction(
-    (expected) =>
-      document
-        .querySelector("gorak-frame-designer")
-        ?.shadowRoot?.querySelector('input[aria-label="xleft"]')?.value ===
-      expected,
-    "500",
-  );
-  assert.equal(
-    await page.locator(".tabs-container .tab").count(),
-    tabsBeforeUndo,
-    "Ctrl+Y must not open a source tab",
-  );
-  await menuAction("Edit", "Undo");
-  await frame.waitForFunction(
-    (expected) =>
-      document
-        .querySelector("gorak-frame-designer")
-        ?.shadowRoot?.querySelector('input[aria-label="xleft"]')?.value ===
-      expected,
-    initialX,
-  );
-  await menuAction("Edit", "Redo");
-  await frame.waitForFunction(
-    (expected) =>
-      document
-        .querySelector("gorak-frame-designer")
-        ?.shadowRoot?.querySelector('input[aria-label="xleft"]')?.value ===
-      expected,
-    "500",
-  );
-  assert.equal(
-    await page.locator(".tabs-container .tab").count(),
-    tabsBeforeUndo,
-    "Toolbar undo/redo must not open a source tab",
-  );
-  await menuAction("File", "Save");
-  await frame.getByText("WML: saved", { exact: false }).waitFor();
-  assert.ok((await fs.readFile(file, "utf8")).includes('xleft="500"'));
-  if (compatibility) {
-    const marker = '<entryfield name="quantity" xleft="200"';
-    assert.equal(
-      original.split(marker).length,
-      2,
-      "Unique upstream edit target",
-    );
-    const expected = Buffer.from(
-      original.replace(marker, '<entryfield name="quantity" xleft="500"'),
-    );
+  assert.equal(await frame.locator("#error").textContent(), "");
+  for (const [name, bytes] of before)
     assert.deepEqual(
-      await fs.readFile(file),
-      expected,
-      "Only the requested geometry bytes change",
+      await fs.readFile(name),
+      bytes,
+      `Viewer preserves ${name}`,
     );
-    const companion = path.join(workspace, "example/panel.w4gl");
-    const companionBefore = before.get(companion).toString("utf8");
-    const widthMarker = 'windowwidth = "6000"';
-    assert.equal(companionBefore.split(widthMarker).length, 2);
-    await frame
-      .locator("gorak-frame-designer .surface")
-      .click({ position: { x: 160, y: 150 } });
-    const width = frame.locator('input[aria-label="windowwidth"]');
-    await width.fill("7000");
-    await width.press("Tab");
-    await frame.getByText("Companion: unsaved", { exact: false }).waitFor();
-    assert.deepEqual(await fs.readFile(companion), before.get(companion));
-    await menuAction("File", "Save");
-    await frame.getByText("Companion: saved", { exact: false }).waitFor();
-    assert.equal(
-      await fs.readFile(companion, "utf8"),
-      companionBefore.replace(widthMarker, 'windowwidth = "7000"'),
-      "Companion edit preserves image metadata, component kind and script bytes",
-    );
-    assert.deepEqual(await fs.readFile(file), expected);
-    for (const [name, bytes] of before) {
-      if (name !== file && name !== companion)
-        assert.deepEqual(
-          await fs.readFile(name),
-          bytes,
-          `Unrelated fixture bytes: ${name}`,
-        );
-    }
-    assert.equal(await frame.locator("#error").textContent(), "");
-    await frame
-      .page()
-      .screenshot({ path: path.join(output, "compatibility.png") });
-    console.log(
-      `Installed designer compatibility passed: upstream field and companion edits, dirty state, undo/redo, save, exact source preservation. Screenshot: ${output}/compatibility.png`,
-    );
-  } else {
-    await x.fill("750");
-    await x.press("Control+s");
-    const savedDeadline = Date.now() + 5000;
-    while (!(await fs.readFile(file, "utf8")).includes('xleft="750"')) {
-      assert.ok(
-        Date.now() < savedDeadline,
-        "Ctrl+S commits the focused inspector input",
-      );
-      await new Promise((r) => setTimeout(r, 50));
-    }
-    await frame.locator("gorak-frame-designer .field").first().click();
-    await frame
-      .locator("gorak-frame-designer .field")
-      .nth(1)
-      .click({ modifiers: ["Shift"] });
-    await menuAction("Group", "Flexible Form");
-    await frame.locator(".field.flexibleform").waitFor();
-    await menuAction("File", "Save");
-    await frame.getByText("WML: saved", { exact: false }).waitFor();
-    assert.match(await fs.readFile(file, "utf8"), /<flexibleform/);
-    const groupId = await frame
-      .locator("select.selection option")
-      .evaluateAll(
-        (options) =>
-          options.find((option) => option.textContent.includes("group1"))
-            ?.value,
-      );
-    assert.ok(groupId, "Grouped form appears in the object selector");
-    await frame.locator("select.selection").selectOption(groupId);
-    await menuAction("Group", "Ungroup");
-    await frame.locator(".field.flexibleform").waitFor({ state: "detached" });
-    await menuAction("File", "Save");
-    await frame.getByText("WML: saved", { exact: false }).waitFor();
-    assert.doesNotMatch(await fs.readFile(file, "utf8"), /<flexibleform/);
-    await frame
-      .locator("gorak-frame-designer .surface")
-      .click({ position: { x: 160, y: 150 } });
-    const width = frame.locator('input[aria-label="windowwidth"]');
-    await width.fill("7000");
-    await width.press("Tab");
-    await frame.getByText("Companion: unsaved", { exact: false }).waitFor();
-    await menuAction("File", "Save");
-    await frame.getByText("Companion: saved", { exact: false }).waitFor();
-    assert.ok(
-      (await fs.readFile(path.join(workspace, "sample.w4gl"), "utf8")).includes(
-        '"7000"',
-      ),
-    );
-    assert.equal(await frame.locator("#error").textContent(), "");
-    await frame.page().screenshot({ path: path.join(output, "designer.png") });
-    console.log(
-      `Designer webview passed: field edit, in-memory dirty state, undo/redo without source tabs, compact menus, grouping/ungrouping, Save, focused-input Ctrl+S, companion edit/save. Screenshot: ${output}/designer.png`,
-    );
-  }
+  await frame.page().screenshot({ path: path.join(output, "viewer.png") });
+  await menuAction("View", "Raw WML");
+  await page.locator(".monaco-editor textarea").first().waitFor();
+  console.log(
+    `Read-only designer passed: inspection, zoom, blocked edits and shortcuts, source switching, exact file preservation. Screenshot: ${output}/viewer.png`,
+  );
 } catch (error) {
   for (const page of browser?.contexts().flatMap((c) => c.pages()) ?? [])
     await page

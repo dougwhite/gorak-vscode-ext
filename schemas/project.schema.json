@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "gorak project",
+  "description": "Project metadata written by the gorak CLI. Application configuration belongs in app.json.",
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Project name."
+    },
+    "version": {
+      "type": "string",
+      "description": "Project version."
+    },
+    "description": {
+      "type": "string",
+      "description": "Project description."
+    },
+    "author": {
+      "type": "string",
+      "description": "Project author."
+    },
+    "contact": {
+      "type": "string",
+      "description": "Author contact details."
+    },
+    "license": {
+      "type": "string",
+      "description": "Project license."
+    }
+  },
+  "additionalProperties": true
+}

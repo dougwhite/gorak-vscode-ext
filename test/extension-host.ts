@@ -1,3 +1,4 @@
+import { testFileIcons } from "./file-icons-host";
 import { testFrameEditor } from "./frame-editor-host";
 import * as vscode from "vscode";
 import assert from "node:assert/strict";
@@ -5,6 +6,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 
 export async function run() {
+  await testFileIcons();
   const extension = vscode.extensions.getExtension(
     "dougwhite.gorak-vscode-ext",
   );
@@ -656,7 +658,7 @@ export async function run() {
       {
         passed: true,
         checks: [
-          "frame-designer-default-source-disable-dirty-save-companion-undo-stale-edits",
+          "frame-viewer-default-source-disable-reject-writes-live-refresh",
           "native-stylesheet-completion",
           "native-column-prototype-hover",
           "native-wml-pi-navigation",

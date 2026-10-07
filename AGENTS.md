@@ -4,7 +4,7 @@ Always spell `gorak` in lowercase, including at the start of sentences and in he
 
 This is a thin TypeScript editor client for the standalone gorak LSP for Actian OpenROAD source in gorak projects. It is separate from the gorak Python CLI.
 
-- Run `npm ci`, then `npm run verify` and `npm run format:check` for changes. `npm run test:editor` runs an isolated installed VS Code extension host; it needs a graphical display. Use `VSCODE_EXECUTABLE` for an alternate executable.
+- Run `npm ci`, then `npm run verify` and `npm run format:check` for changes. `npm run test:editor` runs an isolated installed VS Code extension host; Linux editor tests automatically use Xvfb so they do not open desktop windows. Install Xvfb or set `XVFB_EXECUTABLE`; they fail without it instead of falling back to the desktop. `GORAK_TEST_VISIBLE=1` explicitly opts into visible tests. Use `VSCODE_EXECUTABLE` for an alternate executable.
 - Keep analysis in `gorak-lsp-rs`; do not duplicate its parser or server here. Fetch the pinned server release before building the extension. Keep the VSIX runtime-only and never publish private corpora or build-machine paths. Keep client, grammar and editor tests here.
 - Keep original UTF-16 document offsets through TOML and embedded XML script analysis. Add position-sensitive tests for parser changes.
 - Use neutral synthetic fixtures only. Do not copy private application source or Actian extension implementation, grammar, caches, or other proprietary assets.

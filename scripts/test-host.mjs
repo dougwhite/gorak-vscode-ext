@@ -1,3 +1,4 @@
+import "./test-display.mjs";
 import { editorExecutable } from "./editor.mjs";
 import { build } from "esbuild";
 import { spawn } from "node:child_process";

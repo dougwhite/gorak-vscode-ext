@@ -1,0 +1,8 @@
+{
+  "scopeName": "source.json.gorak-project",
+  "patterns": [
+    {
+      "include": "source.json"
+    }
+  ]
+}
