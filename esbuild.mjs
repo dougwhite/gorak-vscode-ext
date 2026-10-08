@@ -10,7 +10,7 @@ const result = await build({
   platform: "node",
   format: "cjs",
   target: "node20",
-  external: ["vscode"],
+  external: ["vscode", "gorak-frame-designer/image-assets"],
   sourcemap: false,
   metafile: true,
 });
@@ -22,6 +22,14 @@ const browserResult = await build({
   format: "iife",
   target: "es2022",
   metafile: true,
+});
+await build({
+  entryPoints: ["src/component-webview.mts"],
+  outfile: "dist/component-webview.js",
+  bundle: true,
+  platform: "browser",
+  format: "iife",
+  target: "es2022",
 });
 const packages = new Set(
   Object.keys({
@@ -71,9 +79,24 @@ const { createHash } = await import("node:crypto");
 const bytes = await fs.readFile("server/gorak-lsp" + executable);
 if (createHash("sha256").update(bytes).digest("hex") !== server.sha256)
   throw new Error("Bundled server checksum mismatch");
-await fs.writeFile("dist/gorak-lsp" + executable, bytes, { mode: 0o755 });
+const serverStage = `dist/.gorak-lsp-${process.pid}${executable}`;
+await fs.writeFile(serverStage, bytes, { mode: 0o755 });
+await fs.rename(serverStage, "dist/gorak-lsp" + executable);
 await fs.copyFile("server/version.json", "dist/server-version.json");
 await fs.appendFile(
   "THIRD_PARTY_NOTICES.md",
   "\n" + (await fs.readFile("server/THIRD_PARTY_NOTICES.md", "utf8")),
+);
+
+await fs.mkdir("dist/image-assets/electron", { recursive: true });
+await fs.mkdir("dist/image-assets/src", { recursive: true });
+for (const file of ["electron/image-assets.cjs", "src/builtin-images.json"])
+  await fs.copyFile(
+    path.join("node_modules/gorak-frame-designer", file),
+    path.join("dist/image-assets", file),
+  );
+await fs.cp(
+  "node_modules/gorak-frame-designer/src/builtin-images",
+  "dist/image-assets/src/builtin-images",
+  { recursive: true },
 );

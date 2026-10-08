@@ -443,60 +443,21 @@ export async function run() {
   );
   const previewLine = previewDocument.lineAt(3).text;
   const previewAt = new vscode.Position(3, previewLine.lastIndexOf("customer"));
-  await vscode.commands.executeCommand(
-    "gorak.findReferences",
+  const references = await vscode.commands.executeCommand<vscode.Location[]>(
+    "vscode.executeReferenceProvider",
     previewDocument.uri,
     previewAt,
   );
-  const referenceExtension = vscode.extensions.getExtension(
-    "vscode.references-view",
-  )!;
-  const referenceApi = (await referenceExtension.activate()) as {
-    getInput(): any;
-  };
-  const previewDeadline = Date.now() + 5000;
-  while (referenceApi.getInput()?.contextValue !== "gorak-references") {
-    assert.ok(
-      Date.now() < previewDeadline,
-      "gorak references appear in the standard panel",
-    );
-    await new Promise((resolve) => setTimeout(resolve, 25));
-  }
-  const referenceInput = referenceApi.getInput();
-  const referenceModel = await referenceInput.resolve();
-  const groups = await referenceModel.provider.getChildren();
-  const group = groups.find(
-    (g: any) => g.uri.toString() === previewDocument.uri.toString(),
-  );
   assert.ok(
-    group,
-    "Reference results include the synthetic aligned declaration",
+    references?.some(
+      (location) => location.uri.toString() === previewDocument.uri.toString(),
+    ),
+    "Standard reference provider includes the synthetic aligned declaration",
   );
-  const previewRows = await referenceModel.provider.getChildren(group);
-  const previewItem = await referenceModel.provider.getTreeItem(previewRows[0]);
-  assert.equal(
-    previewItem.label.label,
-    previewLine.trimStart(),
-    "The full declaration prefix is retained despite a long alignment gap",
-  );
-  const [highlightStart, highlightEnd] = previewItem.label.highlights[0];
-  assert.equal(
-    previewItem.label.label.slice(highlightStart, highlightEnd),
-    "customer",
-  );
-  const selection = previewItem.command.arguments[1].selection;
-  assert.equal(
-    previewDocument.getText(selection),
-    "customer",
-    "Navigation still selects only the exact reference",
-  );
+  const commands = await vscode.commands.getCommands(true);
   assert.ok(
-    previewItem.tooltip.value.includes(previewLine),
-    "Tooltip retains the full untrimmed line",
-  );
-  assert.ok(
-    referenceInput.with(new vscode.Location(previewDocument.uri, previewAt)),
-    "Reference history can rerun the query",
+    !commands.includes("gorak.findReferences"),
+    "No duplicate full-lines reference command",
   );
   const typeDocument = await vscode.workspace.openTextDocument(
     vscode.Uri.file(path.join(root, "examples/demo/type_checks.w4gl")),
@@ -668,7 +629,7 @@ export async function run() {
           "method-parameter-rename-preview",
           "activation",
           "reference-type-problems-and-correction",
-          "full-line-reference-panel-highlight-navigation-tooltip",
+          "standard-reference-provider-no-duplicate-command",
           "named-parameter-definition-references-rename",
           "builtin-virtual-document",
           "builtin-member-completion",

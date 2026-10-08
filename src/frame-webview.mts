@@ -3,6 +3,8 @@ import {
   parseWml,
   parseMetadata,
   frameFromWml,
+  decodeFrameImages,
+  imageKey,
 } from "gorak-frame-designer";
 declare function acquireVsCodeApi(): { postMessage(message: unknown): void };
 const host = acquireVsCodeApi();
@@ -113,6 +115,10 @@ function addMenu(label: string) {
 }
 const viewMenu = addMenu("View");
 viewMenu("Raw WML", () => send("source"));
+viewMenu("W4GL Source", () => send("code"));
+designer.addEventListener("field-action", (event) =>
+  host.postMessage({ type: "field-action", ...(event as CustomEvent).detail }),
+);
 window.addEventListener("pointerdown", (event) => {
   if (!event.composedPath().includes(menu)) closeMenus();
 });
@@ -128,15 +134,45 @@ designer.addEventListener("designer-error", (event) =>
 designer.addEventListener("source-navigation", (event) =>
   host.postMessage({ type: "source", location: (event as CustomEvent).detail }),
 );
-window.addEventListener("message", (event) => {
-  const message = event.data;
+let renderGeneration = 0;
+let currentState: any;
+window.addEventListener("message", async (event) => {
+  let message = event.data;
+  if (message.type === "images") {
+    if (
+      !currentState ||
+      message.uri !== currentState.uri ||
+      message.version !== currentState.version
+    )
+      return;
+    message = {
+      ...currentState,
+      images: message.images,
+      imageError: message.imageError,
+    };
+  } else if (message.type === "state") currentState = message;
   if (message.type === "error") {
     fail(message.message);
     return;
   }
   if (message.type !== "state") return;
+  const generation = ++renderGeneration;
   try {
     const doc = parseWml(message.uri, message.version, message.text);
+    if (message.images === undefined) {
+      const references = [
+        ...new Set(
+          doc.nodes.filter((node) => node.attributes.src).map(imageKey),
+        ),
+      ].map((key) => JSON.parse(key));
+      if (references.length)
+        host.postMessage({
+          type: "images",
+          uri: message.uri,
+          version: message.version,
+          references,
+        });
+    }
     const metadata = message.metadata
       ? parseMetadata(
           message.metadata.uri,
@@ -144,9 +180,13 @@ window.addEventListener("message", (event) => {
           message.metadata.text,
         )
       : undefined;
-    designer.document = frameFromWml(doc, message.layers, metadata);
+    const images = await decodeFrameImages(message.images ?? {});
+    if (generation !== renderGeneration) return;
+    designer.document = frameFromWml(doc, message.layers, metadata, images);
     status.textContent = `Read only · ${message.dirty ? "WML: unsaved" : "WML: saved"}${message.metadata ? (message.metadata.dirty ? " · Companion: unsaved" : " · Companion: saved") : ""}`;
-    error.textContent = "";
+    error.textContent = message.imageError
+      ? `Some images could not be loaded: ${message.imageError}`
+      : "";
     designer.hidden = false;
   } catch (e) {
     designer.hidden = true;

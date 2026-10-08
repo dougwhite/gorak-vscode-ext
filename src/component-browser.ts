@@ -1,0 +1,205 @@
+import * as vscode from "vscode";
+import { randomBytes } from "node:crypto";
+import {
+  type Catalogue,
+  type Component,
+  componentTypes,
+  componentTarget,
+  findComponents,
+  applicationLabels,
+} from "./component-catalogue";
+
+export function registerComponentBrowser(
+  context: vscode.ExtensionContext,
+  request: () => Promise<Catalogue>,
+) {
+  let view: vscode.WebviewView | undefined;
+  let catalogue: Catalogue = { components: [], indexing: false, failures: 0 };
+  let loading: Promise<void> | undefined;
+  let refreshAgain = false;
+  let disposed = false;
+  let focusWhenReady = false;
+  let ready = false;
+  const publish = () =>
+    view?.webview.postMessage({ type: "catalogue", ...catalogue });
+  const refresh = async () => {
+    if (loading) {
+      refreshAgain = true;
+      return loading;
+    }
+    loading = (async () => {
+      let retries = 1;
+      try {
+        do {
+          refreshAgain = false;
+          await view?.webview.postMessage({ type: "loading" });
+          try {
+            const result = await request();
+            if (disposed) return;
+            catalogue = result;
+            await publish();
+          } catch (error) {
+            const code = (error as { code?: number })?.code;
+            if ((code === -32801 || code === -32800) && retries-- > 0)
+              refreshAgain = true;
+            else if (!disposed)
+              await view?.webview.postMessage({
+                type: "error",
+                message:
+                  "Could not load components. Check the language server, then refresh.",
+              });
+          }
+        } while (refreshAgain && !disposed);
+      } finally {
+        loading = undefined;
+      }
+    })();
+    return loading;
+  };
+  const open = async (id: string) => {
+    const item = catalogue.components.find((candidate) => candidate.id === id);
+    if (!item) return;
+    try {
+      const target = componentTarget(item);
+      await vscode.commands.executeCommand(
+        target.designer ? "gorak.openFrameDesigner" : "vscode.openWith",
+        vscode.Uri.parse(target.uri),
+        ...(target.designer ? [] : ["default"]),
+      );
+    } catch {
+      void vscode.window.showErrorMessage(
+        "Could not open this component. Refresh the component list and try again.",
+      );
+    }
+  };
+  const provider: vscode.WebviewViewProvider = {
+    resolveWebviewView(next) {
+      view = next;
+      ready = false;
+      const media = vscode.Uri.joinPath(context.extensionUri, "dist");
+      const icons = vscode.Uri.joinPath(
+        context.extensionUri,
+        "icons",
+        "components",
+      );
+      next.webview.options = {
+        enableScripts: true,
+        localResourceRoots: [media, icons],
+      };
+      const nonce = randomBytes(24).toString("hex");
+      const script = next.webview.asWebviewUri(
+        vscode.Uri.joinPath(media, "component-webview.js"),
+      );
+      const iconBase = next.webview.asWebviewUri(icons);
+      next.webview.html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; img-src ${next.webview.cspSource};"><style>
+body{margin:0;padding:8px;box-sizing:border-box;height:100vh;display:flex;flex-direction:column;color:var(--vscode-foreground);background:var(--vscode-sideBar-background);font:var(--vscode-font-size) var(--vscode-font-family)}
+.controls{display:flex;flex:none;gap:5px;margin-bottom:6px}select,input{box-sizing:border-box;width:100%;min-width:0;color:var(--vscode-input-foreground);background:var(--vscode-input-background);border:1px solid var(--vscode-input-border,transparent);padding:5px;font:inherit}button{font:inherit;color:inherit;background:transparent;border:0;cursor:pointer}button:focus-visible,input:focus,select:focus{outline:1px solid var(--vscode-focusBorder)}#gear{padding:3px 8px;font-size:19px}#types{padding:5px 0;max-height:40vh;overflow:auto;flex:none}#types label{display:flex;align-items:center;gap:5px;margin:5px 0}#types input{width:auto}#status{font-size:11px;color:var(--vscode-descriptionForeground);padding:8px 0}#results{padding:0;margin:0;list-style:none;overflow:auto;flex:1;min-height:0}.row{display:flex;width:100%;gap:6px;align-items:center;text-align:left;min-height:26px;padding:3px 2px}.row:hover,.row:focus{background:var(--vscode-list-hoverBackground)}.row img{width:16px;height:16px;flex:none}.name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.app{margin-left:auto;color:var(--vscode-descriptionForeground);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:45%}#more{width:100%;padding:8px;flex:none} [hidden]{display:none!important}
+</style></head><body data-icons="${iconBase}"><div class="controls"><select id="application" aria-label="Application"><option value="">(ALL) applications</option></select><button id="gear" title="Filter component types" aria-label="Filter component types" aria-expanded="false">⚙</button></div><input id="search" type="search" placeholder="Find component or app!component" aria-label="Find component" autocomplete="off"><div id="types" hidden></div><div id="status" role="status" aria-live="polite"></div><ul id="results" aria-label="Components"></ul><button id="more" hidden>Show more</button><script nonce="${nonce}" src="${script}"></script></body></html>`;
+      context.subscriptions.push(
+        next.webview.onDidReceiveMessage(async (message) => {
+          if (message.type === "ready") {
+            ready = true;
+            if (focusWhenReady) {
+              focusWhenReady = false;
+              await next.webview.postMessage({ type: "focus", all: true });
+            }
+            await refresh();
+          } else if (message.type === "open" && typeof message.id === "string")
+            await open(message.id);
+        }),
+        next.onDidChangeVisibility(() => {
+          if (next.visible) void refresh();
+        }),
+      );
+      next.onDidDispose(() => {
+        if (view === next) view = undefined;
+      });
+    },
+  };
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider("gorak.components", provider),
+    vscode.commands.registerCommand("gorak.refreshComponents", refresh),
+    vscode.commands.registerCommand("gorak.findComponent", async () => {
+      focusWhenReady = true;
+      await vscode.commands.executeCommand("gorak.components.focus");
+      if (ready) {
+        focusWhenReady = false;
+        await view?.webview.postMessage({ type: "focus", all: true });
+      }
+    }),
+    vscode.commands.registerCommand("gorak.quickFind", async () => {
+      const picker = vscode.window.createQuickPick<
+        vscode.QuickPickItem & { component: Component }
+      >();
+      picker.title = "Find gorak component";
+      picker.placeholder = "Component name or application!component";
+      picker.busy = true;
+      picker.matchOnDescription = true;
+      picker.matchOnDetail = true;
+      let closed = false;
+      const update = () => {
+        const labels = applicationLabels(
+          catalogue.components,
+          catalogue.applications,
+        );
+        picker.items = findComponents(catalogue.components, picker.value)
+          .slice(0, 200)
+          .map((component) => ({
+            label: component.name,
+            description:
+              labels.get(component.applicationUri) ?? component.application,
+            detail:
+              componentTypes[component.componentType]?.label ??
+              component.componentType,
+            alwaysShow: true,
+            component,
+          }));
+      };
+      picker.onDidChangeValue(update);
+      picker.onDidAccept(() => {
+        const item = picker.selectedItems[0];
+        if (item) {
+          void open(item.component.id);
+          picker.hide();
+        }
+      });
+      picker.onDidHide(() => {
+        closed = true;
+        picker.dispose();
+      });
+      picker.show();
+      await refresh();
+      if (!closed) {
+        picker.busy = false;
+        update();
+      }
+    }),
+    {
+      dispose() {
+        disposed = true;
+      },
+    },
+  );
+  const watcher = vscode.workspace.createFileSystemWatcher(
+    "**/*.{w4gl,wml,json}",
+  );
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const changed = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (view?.visible) void refresh();
+    }, 750);
+  };
+  context.subscriptions.push(
+    watcher,
+    watcher.onDidChange(changed),
+    watcher.onDidCreate(changed),
+    watcher.onDidDelete(changed),
+    vscode.workspace.onDidChangeWorkspaceFolders(changed),
+    {
+      dispose() {
+        if (timer) clearTimeout(timer);
+      },
+    },
+  );
+}
