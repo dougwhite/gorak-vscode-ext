@@ -639,6 +639,10 @@ try {
       1,
       "Reopening a pinned frame preserves the other preview",
     );
+    // The existing tab label precedes the asynchronous editor focus transition.
+    await frameTab.and(page.locator('[aria-selected="true"]')).waitFor();
+    await row("search_frame").focus();
+    await componentsView.waitForFunction(() => document.hasFocus());
     await row("search_frame").click({ button: "right" });
     await context
       .getByRole("menuitem", { name: "View source code", exact: true })
