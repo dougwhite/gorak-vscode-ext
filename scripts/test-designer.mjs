@@ -155,7 +155,7 @@ try {
   }
   // Element attachment precedes the asynchronous host state message on Windows.
   // Read-only status is published only after the document model is assigned.
-  await frame.getByText("Read only", { exact: false }).waitFor();
+  await frame.locator("#status").filter({ hasText: "Read only" }).waitFor();
   if (!compatibility) {
     await frame.waitForFunction(
       () =>
@@ -348,7 +348,7 @@ try {
       if (!active) await new Promise((resolve) => setTimeout(resolve, 50));
     }
     frame = active;
-    await frame.getByText("Read only", { exact: false }).waitFor();
+    await frame.locator("#status").filter({ hasText: "Read only" }).waitFor();
     const definitionIndex = await frame
       .locator("gorak-frame-designer")
       .evaluate((designer) => {
