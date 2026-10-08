@@ -29,6 +29,23 @@ if (compatibility) {
     '[framesource]\nwindowwidth = "6500"\nwindowheight = "4000"\n\n===\n// opaque script\n// preserve 😀 metadata\n',
   );
 }
+if (!compatibility) {
+  await fs.writeFile(
+    path.join(workspace, "gorak.json"),
+    JSON.stringify({ name: "synthetic_browser" }),
+  );
+  for (const app of ["catalogue", "empty"]) {
+    await fs.mkdir(path.join(workspace, app));
+    await fs.writeFile(
+      path.join(workspace, app, "app.json"),
+      JSON.stringify({ included_applications: [] }),
+    );
+  }
+  await fs.writeFile(
+    path.join(workspace, "catalogue", "search_target.w4gl"),
+    "[proc4glsource]\n\n===\n",
+  );
+}
 const before = new Map();
 async function snapshot(directory) {
   for (const item of await fs.readdir(directory, { withFileTypes: true })) {
@@ -77,6 +94,33 @@ try {
     assert.ok(Date.now() < deadline, "VS Code window opens");
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
+  const runCommand = async (title) => {
+    await page.keyboard.press("Control+Shift+p");
+    await page.waitForFunction(
+      () =>
+        document.activeElement instanceof HTMLInputElement &&
+        document.activeElement.value.startsWith(">"),
+    );
+    const input = page
+      .locator(".quick-input-widget .quick-input-box input:visible")
+      .first();
+    await input.fill(`>${title}`);
+    const target = page
+      .locator(".quick-input-list .monaco-list-row")
+      .filter({ has: page.getByText(title, { exact: true }) })
+      .first();
+    await target.waitFor();
+    const targetIndex = Number(await target.getAttribute("data-index"));
+    const focused = page
+      .locator(".quick-input-list .monaco-list-row.focused")
+      .first();
+    const currentIndex = Number(await focused.getAttribute("data-index"));
+    for (let index = currentIndex; index < targetIndex; index++)
+      await input.press("ArrowDown");
+    for (let index = currentIndex; index > targetIndex; index--)
+      await input.press("ArrowUp");
+    await input.press("Enter");
+  };
   await page.getByText("gorak: ready", { exact: false }).waitFor();
   await page.keyboard.press("Control+w");
   if (compatibility) {
@@ -84,9 +128,7 @@ try {
     await page.keyboard.type("example/panel.wml");
     await page.keyboard.press("Enter");
     await page.getByRole("tab", { name: /panel.wml/ }).waitFor();
-    await page.keyboard.press("Control+Shift+p");
-    await page.keyboard.type("gorak: Switch to Frame Designer");
-    await page.keyboard.press("Enter");
+    await runCommand("gorak: Switch to Frame Designer");
   } else await page.getByRole("treeitem", { name: /sample.wml/ }).dblclick();
   let frame;
   while (!frame) {
@@ -210,11 +252,14 @@ try {
       action.text.slice(action.detail.range.start, action.detail.range.end),
       "inside",
     );
-    await page.getByRole("tree", { name: /References/ }).waitFor();
+    await page.getByText("2 results in 1 file", { exact: true }).waitFor();
+    await page
+      .getByRole("treeitem")
+      .filter({ hasText: "MESSAGE inside" })
+      .first()
+      .waitFor();
     await page.keyboard.press("Escape");
-    await page.keyboard.press("Control+Shift+p");
-    await page.keyboard.type("gorak: Switch to Frame Designer");
-    await page.keyboard.press("Enter");
+    await runCommand("gorak: Switch to Frame Designer");
     const deadline = Date.now() + 10000;
     let active;
     while (!active) {
@@ -244,9 +289,7 @@ try {
   } else await menuAction("View", "Raw WML");
   await page.locator(".monaco-editor textarea").first().waitFor();
   if (!compatibility) {
-    await page.keyboard.press("Control+Shift+p");
-    await page.keyboard.type("gorak: Find Component");
-    await page.keyboard.press("Enter");
+    await runCommand("gorak: Find Component");
     let componentsView;
     const viewDeadline = Date.now() + 10000;
     while (!componentsView) {
@@ -267,6 +310,33 @@ try {
       () => document.activeElement?.id === "search",
     );
     assert.equal(await componentsView.locator("#application").inputValue(), "");
+    await componentsView
+      .locator("#results .row")
+      .filter({ hasText: "search_target" })
+      .waitFor();
+    await componentsView
+      .locator("#application")
+      .selectOption({ label: "empty" });
+    assert.equal(
+      await componentsView.locator("#results .row").count(),
+      0,
+      "Actual empty application remains selectable",
+    );
+    await runCommand("gorak: Quick Find Component");
+    const quickFind = page.getByPlaceholder(
+      "Component name or application!component",
+    );
+    await quickFind.fill("catalogue!search_target");
+    await page
+      .locator(".quick-input-list")
+      .getByText("search_target", { exact: true })
+      .waitFor();
+    await quickFind.press("Enter");
+    await page.getByRole("tab", { name: /search_target.w4gl/ }).waitFor();
+    await runCommand("gorak: Find Component");
+    await componentsView.waitForFunction(
+      () => document.activeElement?.id === "search",
+    );
     await componentsView.evaluate(() => {
       const components = Array.from({ length: 10000 }, (_, i) => ({
         id: `component-${i}`,
@@ -337,9 +407,7 @@ try {
       0,
       "Type filters apply",
     );
-    await page.keyboard.press("Control+Shift+p");
-    await page.keyboard.type("gorak: Find Component");
-    await page.keyboard.press("Enter");
+    await runCommand("gorak: Find Component");
     await componentsView.waitForFunction(
       () => document.activeElement?.id === "search",
     );

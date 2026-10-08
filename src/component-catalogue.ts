@@ -114,3 +114,17 @@ export function applicationLabels(
     ]),
   );
 }
+
+export function componentTarget(component: Component): {
+  uri: string;
+  designer: boolean;
+} {
+  const designer = Boolean(
+    component.frameUri &&
+    ["framesource", "frametemplate"].includes(component.componentType),
+  );
+  return {
+    uri: designer ? component.frameUri! : component.sourceUri,
+    designer,
+  };
+}

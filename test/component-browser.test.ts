@@ -131,3 +131,29 @@ test("catalogue refresh drains changes during pending work and retries cancellat
   assert.equal(calls, 3, "Root changes refresh an already visible sidebar");
   h.dispose();
 });
+
+test("initial focus does not wait for indexing or arrive after the user moves on", async () => {
+  let resolve!: (value: unknown) => void;
+  const h = harness(
+    () =>
+      new Promise((done) => {
+        resolve = done;
+      }),
+  );
+  await h.commands.get("gorak.findComponent")!();
+  const ready = h.ready();
+  await new Promise((done) => setImmediate(done));
+  assert.equal(
+    h.messages.filter((message) => message.type === "focus").length,
+    1,
+    "Search focuses before indexing completes",
+  );
+  resolve(empty);
+  await ready;
+  assert.equal(
+    h.messages.filter((message) => message.type === "focus").length,
+    1,
+    "Index completion cannot steal focus back",
+  );
+  h.dispose();
+});

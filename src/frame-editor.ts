@@ -76,6 +76,7 @@ export function registerFrameEditor(context: vscode.ExtensionContext) {
 }
 export class FrameEditor implements vscode.CustomTextEditorProvider {
   activeUri?: vscode.Uri;
+  private activePanel?: vscode.WebviewPanel;
   constructor(private context: vscode.ExtensionContext) {}
   async resolveCustomTextEditor(
     document: vscode.TextDocument,
@@ -86,7 +87,10 @@ export class FrameEditor implements vscode.CustomTextEditorProvider {
     )(
       "./dist/image-assets/electron/image-assets.cjs",
     ) as typeof import("gorak-frame-designer/image-assets");
-    if (panel.active) this.activeUri = document.uri;
+    if (panel.active) {
+      this.activeUri = document.uri;
+      this.activePanel = panel;
+    }
     if (!enabled(document.uri)) {
       setTimeout(() => {
         void vscode.commands.executeCommand(
@@ -221,9 +225,13 @@ gorak-frame-designer{display:block;flex:1;min-height:0}
         if (doc === document || doc === metadata) void update().catch(report);
       }),
       panel.onDidChangeViewState(() => {
-        if (panel.active) this.activeUri = document.uri;
-        else if (this.activeUri?.toString() === document.uri.toString())
+        if (panel.active) {
+          this.activeUri = document.uri;
+          this.activePanel = panel;
+        } else if (this.activePanel === panel) {
           this.activeUri = undefined;
+          this.activePanel = undefined;
+        }
       }),
       vscode.workspace.onDidChangeConfiguration((event) => {
         if (
@@ -477,8 +485,10 @@ gorak-frame-designer{display:block;flex:1;min-height:0}
     );
     panel.onDidDispose(() => {
       disposed = true;
-      if (this.activeUri?.toString() === document.uri.toString())
+      if (this.activePanel === panel) {
         this.activeUri = undefined;
+        this.activePanel = undefined;
+      }
       disposables.forEach((item) => item.dispose());
     });
   }

@@ -177,6 +177,28 @@ export async function testFrameEditor(extension: vscode.Extension<any>) {
   assert.equal(await fs.readFile(uri.fsPath, "utf8"), original);
   assert.equal(await fs.readFile(companion.fsPath, "utf8"), metadata);
   await doc.save();
+  const disposedSecond = new vscode.EventEmitter<void>();
+  const secondPanel = {
+    ...panel,
+    onDidDispose: disposedSecond.event,
+    dispose() {
+      disposedSecond.fire();
+    },
+  } as vscode.WebviewPanel;
+  await provider.resolveCustomTextEditor(doc, secondPanel);
+  disposed.fire();
+  assert.equal(
+    provider.activeUri?.toString(),
+    uri.toString(),
+    "Closing an inactive copy preserves the active same-document panel",
+  );
+  disposedSecond.fire();
+  assert.equal(
+    provider.activeUri,
+    undefined,
+    "Closing the active panel clears navigation context",
+  );
+  disposedSecond.dispose();
   await vscode.workspace
     .getConfiguration("gorak")
     .update("frameDesigner.enabled", false, vscode.ConfigurationTarget.Global);

@@ -4,6 +4,7 @@ import {
   type Catalogue,
   type Component,
   componentTypes,
+  componentTarget,
   findComponents,
   applicationLabels,
 } from "./component-catalogue";
@@ -59,16 +60,12 @@ export function registerComponentBrowser(
     const item = catalogue.components.find((candidate) => candidate.id === id);
     if (!item) return;
     try {
-      if (item.frameUri)
-        await vscode.commands.executeCommand(
-          "gorak.openFrameDesigner",
-          vscode.Uri.parse(item.frameUri),
-        );
-      else
-        await vscode.commands.executeCommand(
-          "vscode.open",
-          vscode.Uri.parse(item.sourceUri),
-        );
+      const target = componentTarget(item);
+      await vscode.commands.executeCommand(
+        target.designer ? "gorak.openFrameDesigner" : "vscode.openWith",
+        vscode.Uri.parse(target.uri),
+        ...(target.designer ? [] : ["default"]),
+      );
     } catch {
       void vscode.window.showErrorMessage(
         "Could not open this component. Refresh the component list and try again.",
@@ -102,11 +99,11 @@ body{margin:0;padding:8px;box-sizing:border-box;height:100vh;display:flex;flex-d
         next.webview.onDidReceiveMessage(async (message) => {
           if (message.type === "ready") {
             ready = true;
-            await refresh();
             if (focusWhenReady) {
               focusWhenReady = false;
               await next.webview.postMessage({ type: "focus", all: true });
             }
+            await refresh();
           } else if (message.type === "open" && typeof message.id === "string")
             await open(message.id);
         }),

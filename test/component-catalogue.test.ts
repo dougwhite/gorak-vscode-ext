@@ -4,6 +4,7 @@ import {
   findComponents,
   fuzzyScore,
   applicationLabels,
+  componentTarget,
   type Component,
 } from "../src/component-catalogue";
 const component = (
@@ -81,4 +82,20 @@ test("empty applications and duplicate app names retain distinct labels", () => 
     labels.get(applications[0].uri),
     labels.get(applications[1].uri),
   );
+});
+
+test("only supported frame kinds open in the designer", () => {
+  const frame = {
+    ...component("panel"),
+    frameUri: "file:///project/sales/panel.wml",
+  };
+  assert.deepEqual(componentTarget(frame), {
+    uri: frame.frameUri,
+    designer: true,
+  });
+  const field = { ...frame, componentType: "fieldtemplate" };
+  assert.deepEqual(componentTarget(field), {
+    uri: field.sourceUri,
+    designer: false,
+  });
 });
