@@ -22,11 +22,11 @@ if (compatibility) {
 } else {
   await fs.mkdir(workspace);
   original =
-    '<frame><!-- retained 😀 --><topform width="6500" height="4000"><entryfield name="caption" xleft="250" ytop="250" width="1200" height="350"/><entryfield name="zero" width="0" height="0"><defaultstring>  </defaultstring><opaque><row/><row> </row></opaque></entryfield><viewportfield name="viewport" xleft="3500" ytop="500" width="1500" height="1200"><viewfield type="flexibleform" name="content" width="1200" height="1000"><entryfield name="inside" width="500" height="250"/><script>INITIALIZE = { MESSAGE inside; }</script></viewfield></viewportfield><entryfield name="second" xleft="2000" ytop="1000" width="800" height="350"/><buttonfield name="picture" xleft="5000" ytop="500" width="600" height="600"><bitmaplabel src="builtin:imagtrm3"/></buttonfield></topform></frame>\r\n';
+    '<frame><!-- retained 😀 --><topform width="6500" height="4000"><entryfield name="caption" xleft="250" ytop="250" width="1200" height="350"/><entryfield name="zero" width="0" height="0"><defaultstring>  </defaultstring><opaque><row/><row> </row></opaque></entryfield><viewportfield name="viewport" xleft="3500" ytop="500" width="1500" height="1200"><viewfield type="flexibleform" name="content" width="1200" height="1000"><entryfield name="inside" width="500" height="250"/><script>INITIALIZE = { MESSAGE inside; }</script></viewfield></viewportfield><tabfolder xleft="0" ytop="2200" width="1800" height="1200"><tabpagearray><row name="details" width="1800" height="1200"><entryfield name="postal" width="500" height="250"/></row></tabpagearray></tabfolder><entryfield name="second" xleft="2000" ytop="1000" width="800" height="350"/><buttonfield name="picture" xleft="5000" ytop="500" width="600" height="600"><bitmaplabel src="builtin:imagtrm3"/></buttonfield></topform></frame>\r\n';
   await fs.writeFile(file, original);
   await fs.writeFile(
     path.join(workspace, "sample.w4gl"),
-    '[framesource]\nwindowwidth = "6500"\nwindowheight = "4000"\n\n===\n// opaque script\n// preserve 😀 metadata\n',
+    '[framesource]\nwindowwidth = "6500"\nwindowheight = "4000"\n\n===\n// opaque script\n// preserve 😀 metadata\nON CLICK viewport.content.inside = { MESSAGE "event"; }\n',
   );
 }
 if (!compatibility) {
@@ -197,6 +197,20 @@ try {
     );
     assert.match(model.metadata, /preserve 😀 metadata/);
     assert.equal(
+      model.fields.find((f) => f.name === "postal").qualifiedName,
+      "details.postal",
+    );
+    assert.equal(
+      await frame
+        .getByRole("option", {
+          name: "details.postal (ENTRYFIELD)",
+          exact: true,
+        })
+        .count(),
+      1,
+      "Named tab-page ancestry appears in the field selector",
+    );
+    assert.equal(
       await frame.locator("#error").textContent(),
       "",
       "Stylesheet absence is accepted",
@@ -247,33 +261,76 @@ try {
     );
   await frame.page().screenshot({ path: path.join(output, "viewer.png") });
   if (!compatibility) {
-    const action = await frame
+    const fieldIndex = await frame
       .locator("gorak-frame-designer")
       .evaluate((designer) => {
         const child = designer.document.fields.find((f) => f.name === "inside");
-        let detail;
-        designer.addEventListener(
-          "field-action",
-          (event) => {
-            detail = event.detail;
-          },
-          { once: true },
-        );
-        designer.requestFieldAction("references", child.id);
-        return { detail, text: designer.document.source.text };
+        designer.addEventListener("field-action", (event) => {
+          window.lastFieldAction = event.detail;
+        });
+        return [
+          ...designer.shadowRoot.querySelectorAll("[data-field]"),
+        ].findIndex((el) => el.dataset.field === child.id);
       });
+    await frame
+      .locator("[data-field]")
+      .nth(fieldIndex)
+      .click({ button: "right" });
+    const navigationMenu = frame.getByRole("menu", {
+      name: "Field navigation",
+      exact: true,
+    });
+    await navigationMenu.press("Escape");
+    await navigationMenu.waitFor({ state: "detached" });
+    await frame
+      .locator("[data-field]")
+      .nth(fieldIndex)
+      .click({ button: "right" });
+    await frame.getByText("Property Inspector", { exact: true }).click();
+    await navigationMenu.waitFor({ state: "detached" });
+    await frame
+      .locator("[data-field]")
+      .nth(fieldIndex)
+      .click({ button: "right" });
+    await frame
+      .getByRole("menuitem", { name: "Find All References", exact: true })
+      .click();
+    const action = await frame
+      .locator("gorak-frame-designer")
+      .evaluate((designer) => ({
+        detail: window.lastFieldAction,
+        text: designer.document.source.text,
+      }));
+    assert.equal(action.detail.action, "references");
     assert.equal(
       action.text.slice(action.detail.range.start, action.detail.range.end),
       "inside",
     );
-    await page.getByText("2 results in 1 file", { exact: true }).waitFor();
+    await page.getByText("3 results in 2 files", { exact: true }).waitFor();
     await page
       .getByRole("treeitem")
       .filter({ hasText: "MESSAGE inside" })
       .first()
       .waitFor();
+    const sourceReferenceGroup = page
+      .getByRole("treeitem")
+      .filter({ has: page.getByText("sample.w4gl", { exact: true }) })
+      .first();
+    if (
+      (await sourceReferenceGroup.getAttribute("aria-expanded")) === "false"
+    ) {
+      await sourceReferenceGroup.locator(".monaco-tl-twistie").click();
+    }
+    await page
+      .getByRole("treeitem")
+      .filter({ hasText: "content.inside" })
+      .first()
+      .waitFor();
     await page.keyboard.press("Escape");
-    await runCommand("gorak: Switch to Frame Designer");
+    await page
+      .getByRole("tab", { name: /sample.wml/ })
+      .first()
+      .click();
     const deadline = Date.now() + 10000;
     let active;
     while (!active) {
@@ -292,14 +349,32 @@ try {
     }
     frame = active;
     await frame.getByText("Read only", { exact: false }).waitFor();
-    await frame.locator("gorak-frame-designer").evaluate((designer) => {
-      const child = designer.document.fields.find((f) => f.name === "inside");
-      designer.requestFieldAction("definition", child.id);
-    });
+    const definitionIndex = await frame
+      .locator("gorak-frame-designer")
+      .evaluate((designer) => {
+        const child = designer.document.fields.find((f) => f.name === "inside");
+        return [
+          ...designer.shadowRoot.querySelectorAll("[data-field]"),
+        ].findIndex((el) => el.dataset.field === child.id);
+      });
+    await frame
+      .locator("[data-field]")
+      .nth(definitionIndex)
+      .click({ button: "right" });
+    await frame
+      .getByRole("menuitem", { name: "Go to Definition", exact: true })
+      .click();
     await page
       .locator('[id="status.editor.selection"]')
       .filter({ hasText: "6 selected" })
       .waitFor();
+    const definitionAction = await frame.evaluate(() => window.lastFieldAction);
+    assert.equal(definitionAction.action, "definition");
+    assert.deepEqual(definitionAction.range, action.detail.range);
+    assert.equal(
+      await page.locator('[id="status.editor.selection"]').textContent(),
+      `Ln 1, Col ${[...action.text.slice(0, definitionAction.range.end)].length + 1} (6 selected)`,
+    );
   } else await menuAction("View", "Raw WML");
   await page.locator(".monaco-editor textarea").first().waitFor();
   if (!compatibility) {
