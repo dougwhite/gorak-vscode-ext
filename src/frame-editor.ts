@@ -53,7 +53,7 @@ export function registerFrameEditor(context: vscode.ExtensionContext) {
     ),
     vscode.commands.registerCommand(
       "gorak.openFrameDesigner",
-      async (uri?: vscode.Uri) => {
+      async (uri?: vscode.Uri, options?: vscode.TextDocumentShowOptions) => {
         uri ??= vscode.window.activeTextEditor?.document.uri;
         if (!uri || !/\.(wml|w4gl)$/i.test(uri.path)) return;
         uri = uri.with({ path: uri.path.replace(/\.w4gl$/i, ".wml") });
@@ -69,6 +69,7 @@ export function registerFrameEditor(context: vscode.ExtensionContext) {
           "vscode.openWith",
           uri,
           enabled(uri) ? frameViewType : "default",
+          options,
         );
       },
     ),

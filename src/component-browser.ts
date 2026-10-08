@@ -79,6 +79,7 @@ export function registerComponentBrowser(
         target.designer ? "gorak.openFrameDesigner" : "vscode.openWith",
         vscode.Uri.parse(target.uri),
         ...(target.designer ? [] : ["default"]),
+        { preview: true },
       );
     } catch {
       void vscode.window.showErrorMessage(

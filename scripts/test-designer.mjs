@@ -527,7 +527,69 @@ try {
       );
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
-    await page.getByRole("tab", { name: /search_frame.w4gl/ }).click();
+    const frameTab = page.getByRole("tab", { name: /search_frame.wml/ });
+    const plainTab = page.getByRole("tab", { name: /search_plain.wml/ });
+    await frameTab
+      .filter({ has: page.locator(".monaco-icon-label.italic") })
+      .waitFor();
+    await row("search_plain").click();
+    await plainTab
+      .filter({ has: page.locator(".monaco-icon-label.italic") })
+      .waitFor();
+    await frameTab.waitFor({ state: "detached" });
+    await row("search_frame").click();
+    await frameTab
+      .filter({ has: page.locator(".monaco-icon-label.italic") })
+      .waitFor();
+    await plainTab.waitFor({ state: "detached" });
+    await frameTab.dblclick();
+    await frameTab
+      .filter({ hasNot: page.locator(".monaco-icon-label.italic") })
+      .waitFor();
+    await row("search_plain").click();
+    await plainTab
+      .filter({ has: page.locator(".monaco-icon-label.italic") })
+      .waitFor();
+    assert.equal(
+      await frameTab.count(),
+      1,
+      "Pinned frame survives another browser selection",
+    );
+    await row("search_frame").click();
+    await frameTab
+      .filter({ hasNot: page.locator(".monaco-icon-label.italic") })
+      .waitFor();
+    assert.equal(
+      await plainTab.count(),
+      1,
+      "Reopening a pinned frame preserves the other preview",
+    );
+    await row("search_frame").click({ button: "right" });
+    await context
+      .getByRole("menuitem", { name: "View source code", exact: true })
+      .click();
+    const sourceTab = page.getByRole("tab", { name: /search_frame.w4gl/ });
+    await sourceTab.click();
+    await page.waitForFunction(() =>
+      Boolean(document.activeElement?.closest(".monaco-editor")),
+    );
+    await page.keyboard.press("Control+End");
+    await page.keyboard.insertText("x");
+    await sourceTab.and(page.locator(".dirty")).waitFor();
+    await row("search_plain").click();
+    await plainTab.waitFor();
+    assert.equal(
+      await sourceTab.and(page.locator(".dirty")).count(),
+      1,
+      "Dirty source survives opening another frame",
+    );
+    await sourceTab.click();
+    await page.waitForFunction(() =>
+      Boolean(document.activeElement?.closest(".monaco-editor")),
+    );
+    await page.keyboard.press("Control+z");
+    await sourceTab.and(page.locator(":not(.dirty)")).waitFor();
+    await page.screenshot({ path: path.join(output, "preview-tabs.png") });
     await page.waitForFunction(() =>
       Boolean(document.activeElement?.closest(".monaco-editor")),
     );
