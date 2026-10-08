@@ -7,6 +7,7 @@ import {
   applicationLabels,
   fuzzyScore,
   sortComponents,
+  restoredBrowserQuery,
 } from "./component-catalogue.js";
 declare function acquireVsCodeApi(): {
   postMessage(message: unknown): void;
@@ -35,7 +36,7 @@ let application =
   typeof saved.application === "string" ? saved.application : "";
 let origin: { mode: Mode; application: string; query: string } | undefined =
   saved.origin;
-search.value = typeof saved.query === "string" ? saved.query : "";
+search.value = restoredBrowserQuery(saved);
 let sortKey: ComponentSort = ["name", "type", "application"].includes(
   saved.sortKey,
 )

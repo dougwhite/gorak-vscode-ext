@@ -150,3 +150,13 @@ export function sortComponents(
         a.id.localeCompare(b.id)),
   );
 }
+
+export function restoredBrowserQuery(saved: {
+  mode?: unknown;
+  query?: unknown;
+}): string {
+  return ["applications", "app", "global"].includes(String(saved.mode)) &&
+    typeof saved.query === "string"
+    ? saved.query
+    : "";
+}

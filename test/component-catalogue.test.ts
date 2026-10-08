@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   findComponents,
   sortComponents,
+  restoredBrowserQuery,
   fuzzyScore,
   applicationLabels,
   componentTarget,
@@ -129,5 +130,15 @@ test("browser sorts name, type and application in both directions without droppi
     sortComponents(findComponents(many, "", "file:///project/sales/"), "name")
       .length,
     350,
+  );
+});
+
+test("application-first browser clears legacy component queries and retains current modes", () => {
+  assert.equal(restoredBrowserQuery({ query: "old_frame" }), "");
+  for (const mode of ["applications", "app", "global"])
+    assert.equal(restoredBrowserQuery({ mode, query: "customer" }), "customer");
+  assert.equal(
+    restoredBrowserQuery({ mode: "invalid", query: "old_frame" }),
+    "",
   );
 });
