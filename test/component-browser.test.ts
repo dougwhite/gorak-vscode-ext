@@ -57,6 +57,9 @@ function harness(request: () => Promise<unknown>) {
       joinPath: (...parts: any[]) => ({ toString: () => parts.join("/") }),
     },
     window: {
+      showTextDocument: async (uri: any, options: any) => {
+        opened.push(["showTextDocument", uri.toString(), options]);
+      },
       registerWebviewViewProvider: (_id: string, value: any) => {
         provider = value;
         return disposable;
@@ -211,16 +214,14 @@ test("frame context actions lazily check only the component stylesheet and prese
   });
   await h.receive({ type: "open", id: "frame", action: "source" });
   assert.deepEqual(h.opened.at(-1), [
-    "vscode.openWith",
+    "showTextDocument",
     frame.sourceUri,
-    "default",
     { preview: true },
   ]);
   await h.receive({ type: "open", id: "frame", action: "stylesheet" });
   assert.deepEqual(h.opened.at(-1), [
-    "vscode.openWith",
+    "showTextDocument",
     "file:///project/app/panel.fielddefaults.json",
-    "default",
     { preview: true },
   ]);
   await h.receive({ type: "open", id: "frame" });
