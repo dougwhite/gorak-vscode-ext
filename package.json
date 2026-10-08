@@ -289,7 +289,7 @@
     "test:icons": "npm run build && node scripts/test-icons.mjs"
   },
   "dependencies": {
-    "gorak-frame-designer": "https://github.com/dougwhite/gorak-frame-designer/releases/download/v0.1.0-alpha.6/gorak-frame-designer-0.1.0-alpha.6.tgz",
+    "gorak-frame-designer": "https://github.com/dougwhite/gorak-frame-designer/releases/download/v0.1.0-alpha.7/gorak-frame-designer-0.1.0-alpha.7.tgz",
     "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {
