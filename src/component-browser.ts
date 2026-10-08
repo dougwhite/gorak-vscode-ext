@@ -75,11 +75,16 @@ export function registerComponentBrowser(
             : componentTarget(item);
       if (action === "stylesheet")
         await vscode.workspace.fs.stat(vscode.Uri.parse(target.uri));
-      await vscode.commands.executeCommand(
-        target.designer ? "gorak.openFrameDesigner" : "vscode.openWith",
-        vscode.Uri.parse(target.uri),
-        ...(target.designer ? [] : ["default"]),
-      );
+      if (target.designer)
+        await vscode.commands.executeCommand(
+          "gorak.openFrameDesigner",
+          vscode.Uri.parse(target.uri),
+          { preview: true },
+        );
+      else
+        await vscode.window.showTextDocument(vscode.Uri.parse(target.uri), {
+          preview: true,
+        });
     } catch {
       void vscode.window.showErrorMessage(
         "Could not open this component. Refresh the component list and try again.",

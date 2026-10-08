@@ -20,6 +20,7 @@ const gear = document.querySelector<HTMLButtonElement>("#gear")!;
 const filters = document.querySelector<HTMLDivElement>("#types")!;
 const status = document.querySelector<HTMLDivElement>("#status")!;
 const results = document.querySelector<HTMLUListElement>("#results")!;
+const listing = document.querySelector<HTMLDivElement>("#listing")!;
 const back = document.querySelector<HTMLButtonElement>("#back")!;
 const heading = document.querySelector<HTMLElement>("#heading")!;
 const global = document.querySelector<HTMLButtonElement>("#global")!;
@@ -177,6 +178,7 @@ function render() {
         descending = false;
         lastSortClick = undefined;
         render();
+        listing.scrollTop = 0;
         search.focus();
       };
     }
@@ -264,12 +266,14 @@ back.onclick = () => {
     search.value = "";
   }
   render();
+  listing.scrollTop = 0;
   search.focus();
 };
 global.onclick = () => {
   origin = { mode, application, query: search.value };
   mode = "global";
   render();
+  listing.scrollTop = 0;
   search.focus();
 };
 for (const button of sortButtons)
@@ -383,6 +387,7 @@ window.addEventListener("message", (event) => {
     search.focus();
     search.select();
     render();
+    listing.scrollTop = 0;
     return;
   }
   if (message.type !== "catalogue") return;

@@ -527,7 +527,69 @@ try {
       );
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
-    await page.getByRole("tab", { name: /search_frame.w4gl/ }).click();
+    const frameTab = page.getByRole("tab", { name: /search_frame.wml/ });
+    const plainTab = page.getByRole("tab", { name: /search_plain.wml/ });
+    await frameTab
+      .filter({ has: page.locator(".monaco-icon-label.italic") })
+      .waitFor();
+    await row("search_plain").click();
+    await plainTab
+      .filter({ has: page.locator(".monaco-icon-label.italic") })
+      .waitFor();
+    await frameTab.waitFor({ state: "detached" });
+    await row("search_frame").click();
+    await frameTab
+      .filter({ has: page.locator(".monaco-icon-label.italic") })
+      .waitFor();
+    await plainTab.waitFor({ state: "detached" });
+    await frameTab.dblclick();
+    await frameTab
+      .filter({ hasNot: page.locator(".monaco-icon-label.italic") })
+      .waitFor();
+    await row("search_plain").click();
+    await plainTab
+      .filter({ has: page.locator(".monaco-icon-label.italic") })
+      .waitFor();
+    assert.equal(
+      await frameTab.count(),
+      1,
+      "Pinned frame survives another browser selection",
+    );
+    await row("search_frame").click();
+    await frameTab
+      .filter({ hasNot: page.locator(".monaco-icon-label.italic") })
+      .waitFor();
+    assert.equal(
+      await plainTab.count(),
+      1,
+      "Reopening a pinned frame preserves the other preview",
+    );
+    await row("search_frame").click({ button: "right" });
+    await context
+      .getByRole("menuitem", { name: "View source code", exact: true })
+      .click();
+    const sourceTab = page.getByRole("tab", { name: /search_frame.w4gl/ });
+    await sourceTab.click();
+    await page.waitForFunction(() =>
+      Boolean(document.activeElement?.closest(".monaco-editor")),
+    );
+    await page.keyboard.press("Control+End");
+    await page.keyboard.insertText("x");
+    await sourceTab.and(page.locator(".dirty")).waitFor();
+    await row("search_plain").click();
+    await plainTab.waitFor();
+    assert.equal(
+      await sourceTab.and(page.locator(".dirty")).count(),
+      1,
+      "Dirty source survives opening another frame",
+    );
+    await sourceTab.click();
+    await page.waitForFunction(() =>
+      Boolean(document.activeElement?.closest(".monaco-editor")),
+    );
+    await page.keyboard.press("Control+z");
+    await sourceTab.and(page.locator(":not(.dirty)")).waitFor();
+    await page.screenshot({ path: path.join(output, "preview-tabs.png") });
     await page.waitForFunction(() =>
       Boolean(document.activeElement?.closest(".monaco-editor")),
     );
@@ -560,6 +622,7 @@ try {
         componentType: i % 2 ? "classsource" : "framesource",
         sourceUri: `file:///synthetic/app_${i % 30}/frame_${i}.w4gl`,
       }));
+      window.catalogueForRefresh = components;
       window.dispatchEvent(
         new MessageEvent("message", {
           data: { type: "catalogue", components, failures: 0 },
@@ -617,9 +680,61 @@ try {
       .locator("body")
       .screenshot({ path: path.join(output, "components-global.png") });
     await componentsView.locator('[data-sort="name"]').click();
+    const listing = componentsView.locator("#listing");
+    const scrollList = async () => {
+      await listing.evaluate((element) => {
+        element.scrollTop = element.scrollHeight;
+      });
+      assert.ok(
+        (await listing.evaluate((element) => element.scrollTop)) > 0,
+        "Fixture list is actually scrolled",
+      );
+    };
+    const assertListTop = async () => {
+      assert.equal(
+        await listing.evaluate((element) => element.scrollTop),
+        0,
+        "Navigation starts at the top of the new list",
+      );
+      assert.ok(
+        await rows.first().evaluate((element) => {
+          const bounds = element.getBoundingClientRect();
+          const list = document
+            .querySelector("#listing")
+            .getBoundingClientRect();
+          return bounds.top >= list.top && bounds.bottom <= list.bottom;
+        }),
+        "First result is inside the listing viewport",
+      );
+    };
+    await scrollList();
     await back.click();
+    await assertListTop();
     assert.equal(await rows.count(), 30, "Back shows application landing list");
+    await scrollList();
     await row("app_4").click();
+    await assertListTop();
+    await scrollList();
+    const beforeRefresh = await listing.evaluate(
+      (element) => element.scrollTop,
+    );
+    await componentsView.evaluate(() =>
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            type: "catalogue",
+            components: window.catalogueForRefresh,
+            failures: 0,
+          },
+        }),
+      ),
+    );
+    assert.equal(
+      await listing.evaluate((element) => element.scrollTop),
+      beforeRefresh,
+      "Ordinary catalogue refresh preserves component scroll",
+    );
+
     assert.equal(
       await rows.count(),
       334,
@@ -648,7 +763,10 @@ try {
       "Global search preserves scoped query",
     );
     assert.ok((await rows.count()) > scoped, "Global link broadens results");
+    await assertListTop();
+    await scrollList();
     await back.click();
+    await assertListTop();
     assert.equal(await heading.textContent(), "app_4");
     assert.equal(
       await search.inputValue(),
