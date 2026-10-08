@@ -22,11 +22,11 @@ if (compatibility) {
 } else {
   await fs.mkdir(workspace);
   original =
-    '<frame><!-- retained 😀 --><topform width="6500" height="4000"><entryfield name="caption" xleft="250" ytop="250" width="1200" height="350"/><entryfield name="zero" width="0" height="0"><defaultstring>  </defaultstring><opaque><row/><row> </row></opaque></entryfield><viewportfield name="viewport" xleft="3500" ytop="500" width="1500" height="1200"><viewfield type="flexibleform" name="content" width="1200" height="1000"><entryfield name="inside" width="500" height="250"/><script>INITIALIZE = { MESSAGE inside; }</script></viewfield></viewportfield><entryfield name="second" xleft="2000" ytop="1000" width="800" height="350"/><buttonfield name="picture" xleft="5000" ytop="500" width="600" height="600"><bitmaplabel src="builtin:imagtrm3"/></buttonfield></topform></frame>\r\n';
+    '<frame><!-- retained 😀 --><topform width="6500" height="4000"><entryfield name="caption" xleft="250" ytop="250" width="1200" height="350"/><entryfield name="zero" width="0" height="0"><defaultstring>  </defaultstring><opaque><row/><row> </row></opaque></entryfield><viewportfield name="viewport" xleft="3500" ytop="500" width="1500" height="1200"><viewfield type="flexibleform" name="content" width="1200" height="1000"><entryfield name="inside" width="500" height="250"/><script>INITIALIZE = { MESSAGE inside; }</script></viewfield></viewportfield><tabfolder xleft="0" ytop="2200" width="1800" height="1200"><tabpagearray><row name="details" width="1800" height="1200"><entryfield name="postal" width="500" height="250"/></row></tabpagearray></tabfolder><entryfield name="second" xleft="2000" ytop="1000" width="800" height="350"/><buttonfield name="picture" xleft="5000" ytop="500" width="600" height="600"><bitmaplabel src="builtin:imagtrm3"/></buttonfield></topform></frame>\r\n';
   await fs.writeFile(file, original);
   await fs.writeFile(
     path.join(workspace, "sample.w4gl"),
-    '[framesource]\nwindowwidth = "6500"\nwindowheight = "4000"\n\n===\n// opaque script\n// preserve 😀 metadata\n',
+    '[framesource]\nwindowwidth = "6500"\nwindowheight = "4000"\n\n===\n// opaque script\n// preserve 😀 metadata\nON CLICK viewport.content.inside = { MESSAGE "event"; }\n',
   );
 }
 if (!compatibility) {
@@ -155,7 +155,7 @@ try {
   }
   // Element attachment precedes the asynchronous host state message on Windows.
   // Read-only status is published only after the document model is assigned.
-  await frame.getByText("Read only", { exact: false }).waitFor();
+  await frame.locator("#status").filter({ hasText: "Read only" }).waitFor();
   if (!compatibility) {
     await frame.waitForFunction(
       () =>
@@ -196,6 +196,20 @@ try {
       "Viewport content remains inspectable",
     );
     assert.match(model.metadata, /preserve 😀 metadata/);
+    assert.equal(
+      model.fields.find((f) => f.name === "postal").qualifiedName,
+      "details.postal",
+    );
+    assert.equal(
+      await frame
+        .getByRole("option", {
+          name: "details.postal (ENTRYFIELD)",
+          exact: true,
+        })
+        .count(),
+      1,
+      "Named tab-page ancestry appears in the field selector",
+    );
     assert.equal(
       await frame.locator("#error").textContent(),
       "",
@@ -247,33 +261,76 @@ try {
     );
   await frame.page().screenshot({ path: path.join(output, "viewer.png") });
   if (!compatibility) {
-    const action = await frame
+    const fieldIndex = await frame
       .locator("gorak-frame-designer")
       .evaluate((designer) => {
         const child = designer.document.fields.find((f) => f.name === "inside");
-        let detail;
-        designer.addEventListener(
-          "field-action",
-          (event) => {
-            detail = event.detail;
-          },
-          { once: true },
-        );
-        designer.requestFieldAction("references", child.id);
-        return { detail, text: designer.document.source.text };
+        designer.addEventListener("field-action", (event) => {
+          window.lastFieldAction = event.detail;
+        });
+        return [
+          ...designer.shadowRoot.querySelectorAll("[data-field]"),
+        ].findIndex((el) => el.dataset.field === child.id);
       });
+    await frame
+      .locator("[data-field]")
+      .nth(fieldIndex)
+      .click({ button: "right" });
+    const navigationMenu = frame.getByRole("menu", {
+      name: "Field navigation",
+      exact: true,
+    });
+    await navigationMenu.press("Escape");
+    await navigationMenu.waitFor({ state: "detached" });
+    await frame
+      .locator("[data-field]")
+      .nth(fieldIndex)
+      .click({ button: "right" });
+    await frame.getByText("Property Inspector", { exact: true }).click();
+    await navigationMenu.waitFor({ state: "detached" });
+    await frame
+      .locator("[data-field]")
+      .nth(fieldIndex)
+      .click({ button: "right" });
+    await frame
+      .getByRole("menuitem", { name: "Find All References", exact: true })
+      .click();
+    const action = await frame
+      .locator("gorak-frame-designer")
+      .evaluate((designer) => ({
+        detail: window.lastFieldAction,
+        text: designer.document.source.text,
+      }));
+    assert.equal(action.detail.action, "references");
     assert.equal(
       action.text.slice(action.detail.range.start, action.detail.range.end),
       "inside",
     );
-    await page.getByText("2 results in 1 file", { exact: true }).waitFor();
+    await page.getByText("3 results in 2 files", { exact: true }).waitFor();
     await page
       .getByRole("treeitem")
       .filter({ hasText: "MESSAGE inside" })
       .first()
       .waitFor();
+    const sourceReferenceGroup = page
+      .getByRole("treeitem")
+      .filter({ has: page.getByText("sample.w4gl", { exact: true }) })
+      .first();
+    if (
+      (await sourceReferenceGroup.getAttribute("aria-expanded")) === "false"
+    ) {
+      await sourceReferenceGroup.locator(".monaco-tl-twistie").click();
+    }
+    await page
+      .getByRole("treeitem")
+      .filter({ hasText: "content.inside" })
+      .first()
+      .waitFor();
     await page.keyboard.press("Escape");
-    await runCommand("gorak: Switch to Frame Designer");
+    await page
+      .getByRole("tab", { name: /sample.wml/ })
+      .first()
+      .click();
     const deadline = Date.now() + 10000;
     let active;
     while (!active) {
@@ -291,18 +348,77 @@ try {
       if (!active) await new Promise((resolve) => setTimeout(resolve, 50));
     }
     frame = active;
-    await frame.getByText("Read only", { exact: false }).waitFor();
-    await frame.locator("gorak-frame-designer").evaluate((designer) => {
-      const child = designer.document.fields.find((f) => f.name === "inside");
-      designer.requestFieldAction("definition", child.id);
-    });
+    await frame.locator("#status").filter({ hasText: "Read only" }).waitFor();
+    const definitionIndex = await frame
+      .locator("gorak-frame-designer")
+      .evaluate((designer) => {
+        const child = designer.document.fields.find((f) => f.name === "inside");
+        return [
+          ...designer.shadowRoot.querySelectorAll("[data-field]"),
+        ].findIndex((el) => el.dataset.field === child.id);
+      });
+    await frame
+      .locator("[data-field]")
+      .nth(definitionIndex)
+      .click({ button: "right" });
+    await frame
+      .getByRole("menuitem", { name: "Go to Definition", exact: true })
+      .click();
     await page
       .locator('[id="status.editor.selection"]')
       .filter({ hasText: "6 selected" })
       .waitFor();
+    const definitionAction = await frame.evaluate(() => window.lastFieldAction);
+    assert.equal(definitionAction.action, "definition");
+    assert.deepEqual(definitionAction.range, action.detail.range);
+    assert.equal(
+      await page.locator('[id="status.editor.selection"]').textContent(),
+      `Ln 1, Col ${[...action.text.slice(0, definitionAction.range.end)].length + 1} (6 selected)`,
+    );
   } else await menuAction("View", "Raw WML");
   await page.locator(".monaco-editor textarea").first().waitFor();
   if (!compatibility) {
+    await page.keyboard.press("Control+p");
+    const sourcePicker = page
+      .locator(".quick-input-widget .quick-input-box input:visible")
+      .first();
+    await sourcePicker.fill("sample.w4gl");
+    await page
+      .locator(".quick-input-list")
+      .getByText("sample.w4gl", { exact: true })
+      .first()
+      .waitFor();
+    await sourcePicker.press("Enter");
+    await sourcePicker.waitFor({ state: "hidden" });
+    await page.waitForFunction(() =>
+      Boolean(document.activeElement?.closest(".monaco-editor")),
+    );
+    await page.keyboard.press("Control+g");
+    const linePicker = page
+      .locator(".quick-input-widget .quick-input-box input:visible")
+      .first();
+    await linePicker.fill(":8:12");
+    await linePicker.press("Enter");
+    await linePicker.waitFor({ state: "hidden" });
+    await page.keyboard.press("Control+d");
+    await page
+      .locator('[id="status.editor.selection"]')
+      .filter({ hasText: "Ln 8, Col 18 (8 selected)" })
+      .waitFor();
+    // Native Find All References receives the exclusive selection end at the dot.
+    await runCommand("References: Find All References");
+    await page.getByText("2 results in 2 files", { exact: true }).waitFor();
+    await page
+      .getByRole("treeitem")
+      .filter({ hasText: "sample.w4gl" })
+      .first()
+      .waitFor();
+    await page
+      .getByRole("treeitem")
+      .filter({ hasText: "sample.wml" })
+      .first()
+      .waitFor();
+    await page.keyboard.press("Escape");
     await runCommand("gorak: Find Component");
     let componentsView;
     const viewDeadline = Date.now() + 10000;
@@ -564,6 +680,10 @@ try {
       1,
       "Reopening a pinned frame preserves the other preview",
     );
+    // The existing tab label precedes the asynchronous editor focus transition.
+    await frameTab.and(page.locator('[aria-selected="true"]')).waitFor();
+    await row("search_frame").focus();
+    await componentsView.waitForFunction(() => document.hasFocus());
     await row("search_frame").click({ button: "right" });
     await context
       .getByRole("menuitem", { name: "View source code", exact: true })
