@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   findComponents,
+  sortComponents,
+  restoredBrowserQuery,
   fuzzyScore,
   applicationLabels,
   componentTarget,
@@ -98,4 +100,45 @@ test("only supported frame kinds open in the designer", () => {
     uri: field.sourceUri,
     designer: false,
   });
+});
+
+test("browser sorts name, type and application in both directions without dropping rows", async () => {
+  const rows = [
+    component("zebra", "sales", "classsource"),
+    component("alpha", "service", "framesource"),
+    component("bravo", "accounts", "constsource"),
+  ];
+  for (const key of ["name", "type", "application"] as const) {
+    const asc = sortComponents(rows, key);
+    assert.deepEqual(sortComponents(rows, key, true), [...asc].reverse());
+    assert.equal(asc.length, rows.length);
+  }
+  assert.deepEqual(
+    sortComponents(rows, "name").map((x) => x.name),
+    ["alpha", "bravo", "zebra"],
+  );
+  assert.deepEqual(
+    sortComponents(rows, "type").map((x) => x.componentType),
+    ["constsource", "framesource", "classsource"],
+  );
+  assert.deepEqual(
+    sortComponents(rows, "application").map((x) => x.application),
+    ["accounts", "sales", "service"],
+  );
+  const many = Array.from({ length: 350 }, (_, i) => component(`field_${i}`));
+  assert.equal(
+    sortComponents(findComponents(many, "", "file:///project/sales/"), "name")
+      .length,
+    350,
+  );
+});
+
+test("application-first browser clears legacy component queries and retains current modes", () => {
+  assert.equal(restoredBrowserQuery({ query: "old_frame" }), "");
+  for (const mode of ["applications", "app", "global"])
+    assert.equal(restoredBrowserQuery({ mode, query: "customer" }), "customer");
+  assert.equal(
+    restoredBrowserQuery({ mode: "invalid", query: "old_frame" }),
+    "",
+  );
 });

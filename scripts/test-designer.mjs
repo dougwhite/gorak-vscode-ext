@@ -45,6 +45,20 @@ if (!compatibility) {
     path.join(workspace, "catalogue", "search_target.w4gl"),
     "[proc4glsource]\n\n===\n",
   );
+  for (const name of ["search_frame", "search_plain"]) {
+    await fs.writeFile(
+      path.join(workspace, "catalogue", `${name}.wml`),
+      original,
+    );
+    await fs.writeFile(
+      path.join(workspace, "catalogue", `${name}.w4gl`),
+      '[framesource]\nwindowwidth = "6500"\nwindowheight = "4000"\n\n===\n',
+    );
+  }
+  await fs.writeFile(
+    path.join(workspace, "catalogue", "search_frame.fielddefaults.json"),
+    '{"absent":true}',
+  );
 }
 const before = new Map();
 async function snapshot(directory) {
@@ -296,7 +310,7 @@ try {
       for (const candidate of page.frames())
         if (
           await candidate
-            .locator("#application")
+            .locator("#heading")
             .count()
             .catch(() => 0)
         )
@@ -305,22 +319,133 @@ try {
       if (!componentsView)
         await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    await componentsView.locator("#search").waitFor();
+    const rows = componentsView.locator("#results .row");
+    const row = (name) =>
+      rows.filter({
+        has: componentsView.locator(".name").getByText(name, { exact: true }),
+      });
+    const search = componentsView.locator("#search");
+    const heading = componentsView.locator("#heading");
+    const back = componentsView.locator("#back");
+    const context = componentsView.locator("#menu");
     await componentsView.waitForFunction(
       () => document.activeElement?.id === "search",
     );
-    assert.equal(await componentsView.locator("#application").inputValue(), "");
-    await componentsView
-      .locator("#results .row")
-      .filter({ hasText: "search_target" })
-      .waitFor();
-    await componentsView
-      .locator("#application")
-      .selectOption({ label: "empty" });
+    await row("search_target").waitFor();
     assert.equal(
-      await componentsView.locator("#results .row").count(),
+      await heading.textContent(),
+      "All applications",
+      "Find Component explicitly searches every app",
+    );
+    await back.click();
+    assert.equal(await heading.textContent(), "Applications");
+    await row("empty").click();
+    assert.equal(
+      await rows.count(),
       0,
       "Actual empty application remains selectable",
+    );
+    await back.click();
+    await row("catalogue").click();
+    assert.equal(
+      await rows.count(),
+      3,
+      "Each paired frame has one component row",
+    );
+    assert.equal(await componentsView.locator("#results .type").count(), 3);
+    assert.equal(
+      await componentsView
+        .locator('#sort option[value="application"]')
+        .isVisible(),
+      false,
+      "Application sort is global only",
+    );
+    await row("search_plain").click({ button: "right" });
+    await context
+      .getByRole("menuitem", { name: "View source code", exact: true })
+      .waitFor();
+    await componentsView.waitForFunction(
+      () =>
+        document.querySelector('#menu [role="menuitem"]') ===
+        document.activeElement,
+    );
+    await componentsView.locator("#menu").press("Escape");
+    assert.equal(await context.isVisible(), false);
+    assert.equal(
+      await row("search_plain").evaluate(
+        (element) => element === document.activeElement,
+      ),
+      true,
+      "Escape restores originating row focus",
+    );
+    await row("search_plain").press("Shift+F10");
+    await context
+      .getByRole("menuitem", { name: "View source code", exact: true })
+      .waitFor();
+    assert.equal(
+      await context
+        .getByRole("menuitem", { name: "View stylesheet", exact: true })
+        .count(),
+      0,
+      "Absent stylesheet has no action",
+    );
+    await search.click();
+    assert.equal(
+      await context.isVisible(),
+      false,
+      "Outside click dismisses context menu",
+    );
+    await row("search_frame").click({ button: "right" });
+    await context
+      .getByRole("menuitem", { name: "View stylesheet", exact: true })
+      .waitFor();
+    await context.press("End");
+    assert.equal(
+      await componentsView.evaluate(() => document.activeElement?.textContent),
+      "View stylesheet",
+      "Keyboard reaches lazily available stylesheet action",
+    );
+    await context
+      .getByRole("menuitem", { name: "View stylesheet", exact: true })
+      .click();
+    await page
+      .getByRole("tab", { name: /search_frame.fielddefaults.json/ })
+      .waitFor();
+    await row("search_frame").click({ button: "right" });
+    await context
+      .getByRole("menuitem", { name: "View source code", exact: true })
+      .click();
+    await page.getByRole("tab", { name: /search_frame.w4gl/ }).waitFor();
+    await row("search_frame").click({ button: "right" });
+    await context
+      .getByRole("menuitem", { name: "View in frame designer", exact: true })
+      .click();
+    const frameDeadline = Date.now() + 10000;
+    while (
+      !(
+        await Promise.all(
+          page.frames().map((candidate) =>
+            candidate
+              .locator("gorak-frame-designer")
+              .evaluateAll((elements) =>
+                elements.some((element) =>
+                  element.document?.uri.endsWith("/search_frame.wml"),
+                ),
+              )
+              .catch(() => false),
+          ),
+        )
+      ).some(Boolean)
+    ) {
+      assert.ok(
+        Date.now() < frameDeadline,
+        "Context menu opens matching frame designer",
+      );
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    await page.getByRole("tab", { name: /search_frame.w4gl/ }).click();
+    await page.waitForFunction(() =>
+      Boolean(document.activeElement?.closest(".monaco-editor")),
     );
     await runCommand("gorak: Quick Find Component");
     const quickFind = page.getByPlaceholder(
@@ -332,7 +457,11 @@ try {
       .getByText("search_target", { exact: true })
       .waitFor();
     await quickFind.press("Enter");
+    await quickFind.waitFor({ state: "hidden" });
     await page.getByRole("tab", { name: /search_target.w4gl/ }).waitFor();
+    await page.waitForFunction(() =>
+      Boolean(document.activeElement?.closest(".monaco-editor")),
+    );
     await runCommand("gorak: Find Component");
     await componentsView.waitForFunction(
       () => document.activeElement?.id === "search",
@@ -354,71 +483,107 @@ try {
       );
     });
     assert.equal(
-      await componentsView.locator("#results .row").count(),
-      200,
-      "Only a bounded page is rendered",
+      await rows.count(),
+      10000,
+      "All global components are scrollable without Show more",
     );
     assert.equal(
       await componentsView.locator("#results .app").count(),
-      200,
-      "ALL identifies applications",
+      10000,
+      "Global rows identify applications",
     );
-    await page.screenshot({ path: path.join(output, "components.png") });
-    const rapid = await componentsView.evaluate(() => {
-      const search = document.querySelector("#search");
-      let clicked;
-      document.querySelector("#results").addEventListener(
-        "click",
-        (event) => {
-          clicked = event.target
-            .closest("button")
-            ?.querySelector(".name")?.textContent;
-        },
-        { once: true },
+    assert.equal(await componentsView.locator("#more").count(), 0);
+    const assertSorted = async (key, descending) => {
+      const values = await componentsView
+        .locator(`#results .${key}`)
+        .allTextContents();
+      assert.ok(values.length > 1);
+      assert.ok(
+        values.every(
+          (value, index) =>
+            index === 0 ||
+            (descending ? -1 : 1) * values[index - 1].localeCompare(value) <= 0,
+        ),
+        `${key} is ${descending ? "descending" : "ascending"}`,
       );
-      search.value = "frame_99";
-      search.dispatchEvent(new Event("input"));
-      search.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-      );
-      return clicked;
-    });
+    };
+    await assertSorted("name", false);
+    await componentsView.locator("#direction").click();
+    await assertSorted("name", true);
+    await componentsView.locator("#sort").selectOption("type");
+    await assertSorted("type", true);
+    await componentsView.locator("#direction").click();
+    await assertSorted("type", false);
+    await componentsView.locator("#sort").selectOption("application");
+    await assertSorted("app", false);
+    await componentsView.locator("#direction").click();
+    await assertSorted("app", true);
+    await back.click();
+    assert.equal(await rows.count(), 30, "Back shows application landing list");
+    await row("app_4").click();
     assert.equal(
-      rapid,
-      "frame_99",
-      "Immediate Enter flushes a pending search before opening",
+      await rows.count(),
+      334,
+      "All selected-app components are rendered, including rows after 300",
     );
-    await componentsView.locator("#search").fill("app_4!frame_4");
-    await componentsView.waitForFunction(
-      () => document.querySelector("#results .name")?.textContent === "frame_4",
+    assert.equal(await componentsView.locator("#results .app").count(), 0);
+    assert.equal(await heading.textContent(), "app_4");
+    await search.fill("frame_4");
+    await componentsView.locator("#global").waitFor();
+    const scoped = await rows.count();
+    await componentsView.locator("#global").click();
+    assert.equal(await heading.textContent(), "All applications");
+    assert.equal(
+      await search.inputValue(),
+      "frame_4",
+      "Global search preserves scoped query",
     );
-    await componentsView.locator("#search").press("ArrowDown");
+    assert.ok((await rows.count()) > scoped, "Global link broadens results");
+    await back.click();
+    assert.equal(await heading.textContent(), "app_4");
+    assert.equal(
+      await search.inputValue(),
+      "frame_4",
+      "Back restores selected app and query",
+    );
+    assert.equal(await rows.count(), scoped);
+    await search.press("ArrowDown");
     await componentsView.waitForFunction(() =>
       document.activeElement?.classList.contains("row"),
     );
-    await componentsView
-      .locator("#application")
-      .selectOption("file:///synthetic/app_4/");
-    assert.equal(await componentsView.locator("#results .app").count(), 0);
+    await rows.first().press("End");
+    assert.equal(
+      await rows
+        .last()
+        .evaluate((element) => element === document.activeElement),
+      true,
+    );
+    await rows.last().press("Escape");
+    await componentsView.waitForFunction(
+      () => document.activeElement?.id === "search",
+    );
     await componentsView.locator("#gear").click();
     await componentsView.getByLabel("User frame", { exact: true }).uncheck();
     assert.equal(
-      await componentsView.locator("#results .row").count(),
+      await rows.count(),
       0,
-      "Type filters apply",
+      "Type filter applies to the full selected-app list",
     );
+    await componentsView.getByLabel("User frame", { exact: true }).check();
+    await page.screenshot({ path: path.join(output, "components.png") });
     await runCommand("gorak: Find Component");
     await componentsView.waitForFunction(
       () => document.activeElement?.id === "search",
     );
     assert.equal(
-      await componentsView.locator("#application").inputValue(),
-      "",
-      "Find Component resets retained app to ALL",
+      await heading.textContent(),
+      "All applications",
+      "Find Component enters global mode from a scoped view",
     );
   }
+
   console.log(
-    `Read-only designer and component browser passed: image pixels, field references/definition, source switching, read-only preservation, bounded search, application/type filters and keyboard navigation. Screenshot: ${output}/viewer.png`,
+    `Read-only designer and component browser passed: image pixels, field references/definition, source switching, read-only preservation, full app/global lists, sorting, context actions, application/type filters and keyboard navigation. Screenshot: ${output}/viewer.png`,
   );
 } catch (error) {
   for (const page of browser?.contexts().flatMap((c) => c.pages()) ?? []) {
