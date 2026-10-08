@@ -622,6 +622,7 @@ try {
         componentType: i % 2 ? "classsource" : "framesource",
         sourceUri: `file:///synthetic/app_${i % 30}/frame_${i}.w4gl`,
       }));
+      window.catalogueForRefresh = components;
       window.dispatchEvent(
         new MessageEvent("message", {
           data: { type: "catalogue", components, failures: 0 },
@@ -679,9 +680,61 @@ try {
       .locator("body")
       .screenshot({ path: path.join(output, "components-global.png") });
     await componentsView.locator('[data-sort="name"]').click();
+    const listing = componentsView.locator("#listing");
+    const scrollList = async () => {
+      await listing.evaluate((element) => {
+        element.scrollTop = element.scrollHeight;
+      });
+      assert.ok(
+        (await listing.evaluate((element) => element.scrollTop)) > 0,
+        "Fixture list is actually scrolled",
+      );
+    };
+    const assertListTop = async () => {
+      assert.equal(
+        await listing.evaluate((element) => element.scrollTop),
+        0,
+        "Navigation starts at the top of the new list",
+      );
+      assert.ok(
+        await rows.first().evaluate((element) => {
+          const bounds = element.getBoundingClientRect();
+          const list = document
+            .querySelector("#listing")
+            .getBoundingClientRect();
+          return bounds.top >= list.top && bounds.bottom <= list.bottom;
+        }),
+        "First result is inside the listing viewport",
+      );
+    };
+    await scrollList();
     await back.click();
+    await assertListTop();
     assert.equal(await rows.count(), 30, "Back shows application landing list");
+    await scrollList();
     await row("app_4").click();
+    await assertListTop();
+    await scrollList();
+    const beforeRefresh = await listing.evaluate(
+      (element) => element.scrollTop,
+    );
+    await componentsView.evaluate(() =>
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            type: "catalogue",
+            components: window.catalogueForRefresh,
+            failures: 0,
+          },
+        }),
+      ),
+    );
+    assert.equal(
+      await listing.evaluate((element) => element.scrollTop),
+      beforeRefresh,
+      "Ordinary catalogue refresh preserves component scroll",
+    );
+
     assert.equal(
       await rows.count(),
       334,
@@ -710,7 +763,10 @@ try {
       "Global search preserves scoped query",
     );
     assert.ok((await rows.count()) > scoped, "Global link broadens results");
+    await assertListTop();
+    await scrollList();
     await back.click();
+    await assertListTop();
     assert.equal(await heading.textContent(), "app_4");
     assert.equal(
       await search.inputValue(),
