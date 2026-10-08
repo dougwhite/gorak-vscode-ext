@@ -378,6 +378,47 @@ try {
   } else await menuAction("View", "Raw WML");
   await page.locator(".monaco-editor textarea").first().waitFor();
   if (!compatibility) {
+    await page.keyboard.press("Control+p");
+    const sourcePicker = page
+      .locator(".quick-input-widget .quick-input-box input:visible")
+      .first();
+    await sourcePicker.fill("sample.w4gl");
+    await page
+      .locator(".quick-input-list")
+      .getByText("sample.w4gl", { exact: true })
+      .first()
+      .waitFor();
+    await sourcePicker.press("Enter");
+    await sourcePicker.waitFor({ state: "hidden" });
+    await page.waitForFunction(() =>
+      Boolean(document.activeElement?.closest(".monaco-editor")),
+    );
+    await page.keyboard.press("Control+g");
+    const linePicker = page
+      .locator(".quick-input-widget .quick-input-box input:visible")
+      .first();
+    await linePicker.fill(":8:12");
+    await linePicker.press("Enter");
+    await linePicker.waitFor({ state: "hidden" });
+    await page.keyboard.press("Control+d");
+    await page
+      .locator('[id="status.editor.selection"]')
+      .filter({ hasText: "Ln 8, Col 18 (8 selected)" })
+      .waitFor();
+    // Native Find All References receives the exclusive selection end at the dot.
+    await runCommand("References: Find All References");
+    await page.getByText("2 results in 2 files", { exact: true }).waitFor();
+    await page
+      .getByRole("treeitem")
+      .filter({ hasText: "sample.w4gl" })
+      .first()
+      .waitFor();
+    await page
+      .getByRole("treeitem")
+      .filter({ hasText: "sample.wml" })
+      .first()
+      .waitFor();
+    await page.keyboard.press("Escape");
     await runCommand("gorak: Find Component");
     let componentsView;
     const viewDeadline = Date.now() + 10000;

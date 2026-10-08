@@ -2,7 +2,7 @@
   "name": "gorak-vscode-ext",
   "displayName": "gorak OpenROAD",
   "description": "OpenROAD language services for gorak source projects.",
-  "version": "0.9.20",
+  "version": "0.9.21",
   "publisher": "dougwhite",
   "private": true,
   "license": "MIT",
