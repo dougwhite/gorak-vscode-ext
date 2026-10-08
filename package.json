@@ -2,7 +2,7 @@
   "name": "gorak-vscode-ext",
   "displayName": "gorak OpenROAD",
   "description": "OpenROAD language services for gorak source projects.",
-  "version": "0.9.14",
+  "version": "0.9.15",
   "publisher": "dougwhite",
   "private": true,
   "license": "MIT",
@@ -121,10 +121,6 @@
         "title": "gorak: Show Language Server Diagnostics"
       },
       {
-        "command": "gorak.findReferences",
-        "title": "gorak: Find All References (Full Lines)"
-      },
-      {
         "command": "gorak.copyDiagnostics",
         "title": "gorak: Copy Diagnostic Summary"
       },
@@ -135,8 +131,26 @@
       },
       {
         "command": "gorak.openFrameDesigner",
-        "title": "gorak: Open Frame Designer",
+        "title": "gorak: Switch to Frame Designer",
         "icon": "$(preview)"
+      },
+      {
+        "command": "gorak.openFrameCode",
+        "title": "gorak: Switch to Source Code",
+        "icon": "$(code)"
+      },
+      {
+        "command": "gorak.findComponent",
+        "title": "gorak: Find Component"
+      },
+      {
+        "command": "gorak.quickFind",
+        "title": "gorak: Quick Find Component"
+      },
+      {
+        "command": "gorak.refreshComponents",
+        "title": "gorak: Refresh Components",
+        "icon": "$(refresh)"
       }
     ],
     "configuration": {
@@ -168,21 +182,8 @@
         }
       }
     },
-    "keybindings": [
-      {
-        "command": "gorak.findReferences",
-        "key": "shift+alt+f12",
-        "when": "editorTextFocus && (editorLangId == gorak-openroad || editorLangId == gorak-wml)"
-      }
-    ],
+    "keybindings": [],
     "menus": {
-      "editor/context": [
-        {
-          "command": "gorak.findReferences",
-          "when": "editorLangId == gorak-openroad || editorLangId == gorak-wml",
-          "group": "0_navigation@1"
-        }
-      ],
       "editor/title": [
         {
           "command": "gorak.openFrameSource",
@@ -191,7 +192,19 @@
         },
         {
           "command": "gorak.openFrameDesigner",
-          "when": "resourceExtname == .wml && activeCustomEditorId != gorak.frameDesigner && config.gorak.frameDesigner.enabled",
+          "when": "(resourceExtname == .wml || resourceExtname == .w4gl) && activeCustomEditorId != gorak.frameDesigner && config.gorak.frameDesigner.enabled",
+          "group": "navigation"
+        },
+        {
+          "command": "gorak.openFrameCode",
+          "when": "activeCustomEditorId == gorak.frameDesigner",
+          "group": "navigation"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "gorak.refreshComponents",
+          "when": "view == gorak.components",
           "group": "navigation"
         }
       ]
@@ -236,6 +249,24 @@
         },
         "editor.suggest.insertMode": "replace"
       }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "gorak",
+          "title": "gorak",
+          "icon": "icons/sidebar.svg"
+        }
+      ]
+    },
+    "views": {
+      "gorak": [
+        {
+          "type": "webview",
+          "id": "gorak.components",
+          "name": "Components"
+        }
+      ]
     }
   },
   "scripts": {
@@ -258,7 +289,7 @@
     "test:icons": "npm run build && node scripts/test-icons.mjs"
   },
   "dependencies": {
-    "gorak-frame-designer": "https://github.com/dougwhite/gorak-frame-designer/releases/download/v0.1.0-alpha.4/gorak-frame-designer-0.1.0-alpha.4.tgz",
+    "gorak-frame-designer": "https://github.com/dougwhite/gorak-frame-designer/releases/download/v0.1.0-alpha.5/gorak-frame-designer-0.1.0-alpha.5.tgz",
     "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {

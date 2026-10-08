@@ -17,3 +17,7 @@
 
 !icons/**
 !project-language-configuration.json
+
+!dist/component-webview.js
+
+!dist/image-assets/**

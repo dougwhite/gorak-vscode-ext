@@ -45,6 +45,29 @@ export async function testFrameEditor(extension: vscode.Extension<any>) {
           tab.input.viewType === frameViewType &&
           tab.input.uri.toString() === uri.toString(),
       );
+  await vscode.commands.executeCommand("gorak.openFrameCode", uri);
+  assert.equal(
+    vscode.window.activeTextEditor?.document.uri.toString(),
+    companion.toString(),
+    "Designer switches to companion source",
+  );
+  await vscode.commands.executeCommand("gorak.openFrameDesigner", companion);
+  assert.equal(
+    designerTabs().length,
+    1,
+    "Companion source switches to matching designer",
+  );
+  await vscode.commands.executeCommand("gorak.openFrameSource", uri);
+  const other = vscode.Uri.file(path.join(folder, "other.w4gl"));
+  await fs.writeFile(other.fsPath, metadata);
+  await vscode.window.showTextDocument(other);
+  await vscode.commands.executeCommand("gorak.openFrameCode");
+  assert.equal(
+    vscode.window.activeTextEditor?.document.uri.toString(),
+    other.toString(),
+    "Inactive frame cannot hijack source navigation",
+  );
+  await vscode.commands.executeCommand("gorak.openFrameSource", uri);
   // Finish the resolver/source-switch check before attaching the fake transport.
   // A live webview can retain focus after showTextDocument: Windows traces showed
   // history commands handled by 'webview' despite activeTextEditor being the WML.

@@ -1,3 +1,6 @@
+import { registerComponentBrowser } from "./component-browser";
+import type { Catalogue } from "./component-catalogue";
+import { showFullLineReferences } from "./references";
 import * as vscode from "vscode";
 import path from "node:path";
 import { registerProjectLanguage } from "./project-language";
@@ -6,7 +9,6 @@ import { access, constants } from "node:fs/promises";
 import type { ServerOptions } from "vscode-languageclient/node";
 import { IndexStatus, indexStatusText } from "./index-status";
 import { diagnosticSummary } from "./diagnostics";
-import { showFullLineReferences } from "./references";
 import {
   LanguageClient,
   TransportKind,
@@ -170,12 +172,6 @@ export async function activate(context: vscode.ExtensionContext) {
     synchronize: { fileEvents: watcher },
   });
   context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "gorak.findReferences",
-      showFullLineReferences,
-    ),
-  );
-  context.subscriptions.push(
     vscode.commands.registerCommand("gorak.restartServer", async () => {
       // A hung server must not prevent the replacement from starting.
       try {
@@ -333,6 +329,9 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
   );
   await client.start();
+  registerComponentBrowser(context, () =>
+    client!.sendRequest<Catalogue>("gorak/componentCatalogue", {}),
+  );
   let checking = false;
   const heartbeat = setInterval(async () => {
     if (checking || !client?.isRunning()) return;

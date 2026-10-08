@@ -1,3 +1,4 @@
+import { createRequire } from "node:module";
 import * as vscode from "vscode";
 import { randomBytes } from "node:crypto";
 import { validateIntent } from "./frame-protocol";
@@ -27,15 +28,48 @@ export function registerFrameEditor(context: vscode.ExtensionContext) {
       },
     ),
     vscode.commands.registerCommand(
+      "gorak.openFrameCode",
+      async (uri?: vscode.Uri) => {
+        uri ??=
+          provider.activeUri ?? vscode.window.activeTextEditor?.document.uri;
+        if (!uri) return;
+        const companion = uri.with({
+          path: uri.path.replace(/\.wml$/i, ".w4gl"),
+        });
+        try {
+          await vscode.workspace.fs.stat(companion);
+        } catch {
+          void vscode.window.showInformationMessage(
+            "This frame has no matching W4GL source file.",
+          );
+          return;
+        }
+        await vscode.commands.executeCommand(
+          "vscode.openWith",
+          companion,
+          "default",
+        );
+      },
+    ),
+    vscode.commands.registerCommand(
       "gorak.openFrameDesigner",
       async (uri?: vscode.Uri) => {
         uri ??= vscode.window.activeTextEditor?.document.uri;
-        if (uri)
-          await vscode.commands.executeCommand(
-            "vscode.openWith",
-            uri,
-            enabled(uri) ? frameViewType : "default",
+        if (!uri || !/\.(wml|w4gl)$/i.test(uri.path)) return;
+        uri = uri.with({ path: uri.path.replace(/\.w4gl$/i, ".wml") });
+        try {
+          await vscode.workspace.fs.stat(uri);
+        } catch {
+          void vscode.window.showInformationMessage(
+            "This component has no matching frame layout.",
           );
+          return;
+        }
+        await vscode.commands.executeCommand(
+          "vscode.openWith",
+          uri,
+          enabled(uri) ? frameViewType : "default",
+        );
       },
     ),
   );
@@ -47,7 +81,12 @@ export class FrameEditor implements vscode.CustomTextEditorProvider {
     document: vscode.TextDocument,
     panel: vscode.WebviewPanel,
   ) {
-    this.activeUri = document.uri;
+    const { loadImages } = createRequire(
+      vscode.Uri.joinPath(this.context.extensionUri, "package.json").fsPath,
+    )(
+      "./dist/image-assets/electron/image-assets.cjs",
+    ) as typeof import("gorak-frame-designer/image-assets");
+    if (panel.active) this.activeUri = document.uri;
     if (!enabled(document.uri)) {
       setTimeout(() => {
         void vscode.commands.executeCommand(
@@ -183,6 +222,8 @@ gorak-frame-designer{display:block;flex:1;min-height:0}
       }),
       panel.onDidChangeViewState(() => {
         if (panel.active) this.activeUri = document.uri;
+        else if (this.activeUri?.toString() === document.uri.toString())
+          this.activeUri = undefined;
       }),
       vscode.workspace.onDidChangeConfiguration((event) => {
         if (
@@ -230,6 +271,124 @@ gorak-frame-designer{display:block;flex:1;min-height:0}
                 );
                 editor.revealRange(editor.selection);
               }
+              return;
+            }
+            if (message.type === "images") {
+              if (
+                message.uri !== document.uri.toString() ||
+                message.version !== document.version
+              )
+                return;
+              let images = {},
+                imageError = "";
+              try {
+                const assets = await loadImages(
+                  vscode.Uri.joinPath(document.uri, "..").fsPath,
+                  message.references,
+                );
+                images = Object.fromEntries(
+                  Object.entries(assets).map(([key, asset]) => [
+                    key,
+                    {
+                      ...asset,
+                      png: Array.from(asset.png),
+                      transparent: asset.transparent
+                        ? Array.from(asset.transparent)
+                        : undefined,
+                    },
+                  ]),
+                );
+              } catch (error) {
+                imageError =
+                  error instanceof Error ? error.message : String(error);
+              }
+              if (!disposed && message.version === document.version)
+                await panel.webview.postMessage({
+                  type: "images",
+                  uri: message.uri,
+                  version: message.version,
+                  images,
+                  imageError,
+                });
+              return;
+            }
+            if (message.type === "code") {
+              await vscode.commands.executeCommand(
+                "gorak.openFrameCode",
+                document.uri,
+              );
+              return;
+            }
+            if (message.type === "field-action") {
+              const action = message.action;
+              const range = message.range;
+              if (
+                message.uri !== document.uri.toString() ||
+                message.version !== document.version ||
+                !["references", "definition"].includes(action) ||
+                !Number.isInteger(range?.start) ||
+                !Number.isInteger(range?.end) ||
+                range.start < 0 ||
+                range.end <= range.start ||
+                range.end > document.getText().length
+              )
+                throw Error(
+                  "The frame changed. Select the field again before navigating.",
+                );
+              const position = document.positionAt(range.start);
+              const result = await vscode.commands.executeCommand<
+                (vscode.Location | vscode.LocationLink)[]
+              >(
+                action === "references"
+                  ? "vscode.executeReferenceProvider"
+                  : "vscode.executeDefinitionProvider",
+                document.uri,
+                position,
+              );
+              if (disposed || message.version !== document.version) return;
+              const locations = (result ?? []).map((item) =>
+                "targetUri" in item
+                  ? new vscode.Location(
+                      item.targetUri,
+                      item.targetSelectionRange ?? item.targetRange,
+                    )
+                  : item,
+              );
+              if (!locations.length) {
+                void vscode.window.showInformationMessage(
+                  action === "references"
+                    ? "No references found for this field."
+                    : "No definition found for this field.",
+                );
+                return;
+              }
+              if (action === "references") {
+                const editor = await vscode.window.showTextDocument(document, {
+                  viewColumn: panel.viewColumn,
+                  preview: true,
+                });
+                editor.selection = new vscode.Selection(position, position);
+                await vscode.commands.executeCommand(
+                  "references-view.findReferences",
+                );
+              } else if (locations.length === 1) {
+                const location = locations[0];
+                const editor = await vscode.window.showTextDocument(
+                  location.uri,
+                  { viewColumn: panel.viewColumn, preview: true },
+                );
+                editor.selection = new vscode.Selection(
+                  location.range.start,
+                  location.range.end,
+                );
+                editor.revealRange(location.range);
+              } else
+                await vscode.commands.executeCommand(
+                  "editor.action.showReferences",
+                  document.uri,
+                  position,
+                  locations,
+                );
               return;
             }
             await loaded;
@@ -318,6 +477,8 @@ gorak-frame-designer{display:block;flex:1;min-height:0}
     );
     panel.onDidDispose(() => {
       disposed = true;
+      if (this.activeUri?.toString() === document.uri.toString())
+        this.activeUri = undefined;
       disposables.forEach((item) => item.dispose());
     });
   }

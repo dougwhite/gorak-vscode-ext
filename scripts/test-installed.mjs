@@ -1,6 +1,7 @@
 import "./test-display.mjs";
 // Exercise actual VSIX installation, upgrade and rollback in a disposable profile.
 import fs from "node:fs/promises";
+import { createRequire } from "node:module";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { ecosystem } from "./ecosystem.mjs";
@@ -159,6 +160,28 @@ try {
     }
     if (!installed) throw new Error("Installed package missing");
     installedPath = installed;
+    const { loadImages } = createRequire(import.meta.url)(
+      path.join(installed, "dist/image-assets/electron/image-assets.cjs"),
+    );
+    const imageCatalogue = JSON.parse(
+      await fs.readFile(
+        path.join(installed, "dist/image-assets/src/builtin-images.json"),
+        "utf8",
+      ),
+    );
+    const bitmaps = await loadImages(
+      workspace,
+      Object.keys(imageCatalogue).map((name) => [
+        `builtin:${name}`,
+        null,
+        null,
+      ]),
+    );
+    assert.equal(
+      Object.keys(bitmaps).length,
+      Object.keys(imageCatalogue).length,
+      "Every installed built-in image exists and passes its checksum",
+    );
     if (compatibility) {
       const bundled = JSON.parse(
         await fs.readFile(
@@ -193,6 +216,7 @@ try {
       for (const name of [
         "extension.js",
         "frame-webview.js",
+        "component-webview.js",
         "server-version.json",
       ])
         assert.deepEqual(
