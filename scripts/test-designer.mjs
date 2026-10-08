@@ -354,12 +354,96 @@ try {
     );
     assert.equal(await componentsView.locator("#results .type").count(), 3);
     assert.equal(
-      await componentsView
-        .locator('#sort option[value="application"]')
-        .isVisible(),
+      await componentsView.locator('[data-sort="application"]').isVisible(),
       false,
-      "Application sort is global only",
+      "Application header is global only",
     );
+    const backIcon = back.locator("svg");
+    assert.equal(await backIcon.getAttribute("aria-hidden"), "true");
+    assert.equal(await backIcon.getAttribute("focusable"), "false");
+    const assertColumns = async (globalMode = false) => {
+      const positions = await componentsView.evaluate((globalMode) => {
+        const row = document.querySelector("#results .row");
+        return (
+          globalMode
+            ? [
+                ["name", "name"],
+                ["type", "type"],
+                ["application", "app"],
+              ]
+            : [
+                ["name", "name"],
+                ["type", "type"],
+              ]
+        ).map(([key, cell]) => {
+          const header = document
+            .querySelector(`[data-sort="${key}"]`)
+            .getBoundingClientRect();
+          const field = row.querySelector(`.${cell}`).getBoundingClientRect();
+          return {
+            key,
+            header: header.x,
+            field: field.x,
+            headerWidth: header.width,
+            fieldWidth: field.width,
+          };
+        });
+      }, globalMode);
+      for (const { key, header, field, headerWidth, fieldWidth } of positions) {
+        assert.ok(
+          Math.abs(header - field) < 1,
+          `${key} header aligns with row cell`,
+        );
+        assert.ok(
+          Math.abs(headerWidth - fieldWidth) < 1,
+          `${key} header and row share column width`,
+        );
+      }
+    };
+    await assertColumns();
+    for (const [query, count, label] of [
+      ["no_such_component", 0, "zero"],
+      ["search_frame", 1, "one"],
+      ["search_", 3, "few"],
+    ]) {
+      await search.fill(query);
+      await componentsView.waitForFunction(
+        (count) => document.querySelectorAll("#results .row").length === count,
+        count,
+      );
+      await componentsView.locator("#global").waitFor();
+      const layout = await componentsView.evaluate(() => {
+        const list = document.querySelector("#listing"),
+          rows = document.querySelector("#results"),
+          link = document.querySelector("#global");
+        return {
+          sameScroller:
+            rows.parentElement === list && link.parentElement === list,
+          gap:
+            link.getBoundingClientRect().top -
+            rows.getBoundingClientRect().bottom,
+        };
+      });
+      assert.equal(
+        layout.sameScroller,
+        true,
+        "Global search follows results in their scroller",
+      );
+      assert.ok(
+        layout.gap >= 0 && layout.gap <= 12,
+        `Global search sits directly after ${count} results`,
+      );
+      await componentsView
+        .locator("body")
+        .screenshot({ path: path.join(output, `components-${label}.png`) });
+    }
+    await search.fill("");
+    await componentsView.waitForFunction(
+      () =>
+        document.querySelectorAll("#results .row").length === 3 &&
+        document.querySelector("#global").hidden,
+    );
+
     await row("search_plain").click({ button: "right" });
     await context
       .getByRole("menuitem", { name: "View source code", exact: true })
@@ -507,17 +591,32 @@ try {
         `${key} is ${descending ? "descending" : "ascending"}`,
       );
     };
-    await assertSorted("name", false);
-    await componentsView.locator("#direction").click();
-    await assertSorted("name", true);
-    await componentsView.locator("#sort").selectOption("type");
-    await assertSorted("type", true);
-    await componentsView.locator("#direction").click();
-    await assertSorted("type", false);
-    await componentsView.locator("#sort").selectOption("application");
-    await assertSorted("app", false);
-    await componentsView.locator("#direction").click();
-    await assertSorted("app", true);
+    await assertColumns(true);
+    for (const [column, cell] of [
+      ["name", "name"],
+      ["type", "type"],
+      ["application", "app"],
+    ]) {
+      const header = componentsView.locator(`[data-sort="${column}"]`);
+      await header.click();
+      await assertSorted(cell, false);
+      assert.equal(
+        await header.locator("..").getAttribute("aria-sort"),
+        "ascending",
+        "First header click sorts ascending",
+      );
+      await header.click();
+      await assertSorted(cell, true);
+      assert.equal(
+        await header.locator("..").getAttribute("aria-sort"),
+        "descending",
+        "Repeated header click sorts descending",
+      );
+    }
+    await componentsView
+      .locator("body")
+      .screenshot({ path: path.join(output, "components-global.png") });
+    await componentsView.locator('[data-sort="name"]').click();
     await back.click();
     assert.equal(await rows.count(), 30, "Back shows application landing list");
     await row("app_4").click();
@@ -528,6 +627,16 @@ try {
     );
     assert.equal(await componentsView.locator("#results .app").count(), 0);
     assert.equal(await heading.textContent(), "app_4");
+    await componentsView.locator('[data-sort="name"]').click();
+    await assertSorted("name", false);
+    assert.equal(
+      await componentsView
+        .locator('[data-sort="name"]')
+        .locator("..")
+        .getAttribute("aria-sort"),
+      "ascending",
+      "First Name click in a fresh application starts ascending",
+    );
     await search.fill("frame_4");
     await componentsView.locator("#global").waitFor();
     const scoped = await rows.count();

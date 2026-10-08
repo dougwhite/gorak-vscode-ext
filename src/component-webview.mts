@@ -24,8 +24,10 @@ const back = document.querySelector<HTMLButtonElement>("#back")!;
 const heading = document.querySelector<HTMLElement>("#heading")!;
 const global = document.querySelector<HTMLButtonElement>("#global")!;
 const sorting = document.querySelector<HTMLDivElement>("#sorting")!;
-const sort = document.querySelector<HTMLSelectElement>("#sort")!;
-const direction = document.querySelector<HTMLButtonElement>("#direction")!;
+const sortButtons = [
+  ...sorting.querySelectorAll<HTMLButtonElement>("[data-sort]"),
+];
+let lastSortClick: ComponentSort | undefined;
 const menu = document.querySelector<HTMLDivElement>("#menu")!;
 const saved = host.getState() ?? {};
 type Mode = "applications" | "app" | "global";
@@ -120,13 +122,23 @@ function render() {
   sorting.hidden = mode === "applications";
   gear.hidden = mode === "applications";
   if (mode === "applications") filters.hidden = true;
-  sort.querySelector<HTMLOptionElement>('[value="application"]')!.hidden =
-    mode !== "global";
+  document.body.dataset.mode = mode;
   if (mode !== "global" && sortKey === "application") sortKey = "name";
-  sort.value = sortKey;
-  direction.textContent = descending ? "↓" : "↑";
-  direction.title = descending ? "Sort ascending" : "Sort descending";
-  direction.setAttribute("aria-label", direction.title);
+  for (const button of sortButtons) {
+    const key = button.dataset.sort;
+    button.parentElement!.hidden = key === "application" && mode !== "global";
+    const active = key === sortKey;
+    button.parentElement!.setAttribute(
+      "aria-sort",
+      active ? (descending ? "descending" : "ascending") : "none",
+    );
+    button.querySelector("span")!.textContent = active
+      ? descending
+        ? "▼"
+        : "▲"
+      : "";
+    button.title = `Sort by ${button.textContent!.replace(/[▲▼]/g, "").trim()}`;
+  }
   const fragment = document.createDocumentFragment();
   let count = 0;
   const light =
@@ -141,8 +153,11 @@ function render() {
     icon.alt = "";
     icon.src = `${document.body.dataset.icons}/${light ? "light" : "dark"}/${iconName}.svg`;
     text.className = "name";
-    text.textContent = name;
-    button.append(icon, text);
+    const label = document.createElement("span");
+    label.className = "name-text";
+    label.textContent = name;
+    text.append(icon, label);
+    button.append(text);
     li.append(button);
     fragment.append(li);
     count++;
@@ -160,6 +175,7 @@ function render() {
         search.value = "";
         sortKey = "name";
         descending = false;
+        lastSortClick = undefined;
         render();
         search.focus();
       };
@@ -256,14 +272,14 @@ global.onclick = () => {
   render();
   search.focus();
 };
-sort.onchange = () => {
-  sortKey = sort.value as ComponentSort;
-  render();
-};
-direction.onclick = () => {
-  descending = !descending;
-  render();
-};
+for (const button of sortButtons)
+  button.onclick = () => {
+    const key = button.dataset.sort as ComponentSort;
+    descending = lastSortClick === key ? !descending : false;
+    sortKey = key;
+    lastSortClick = key;
+    render();
+  };
 let timer: ReturnType<typeof setTimeout> | undefined;
 search.oninput = () => {
   clearTimeout(timer);
@@ -322,7 +338,9 @@ menu.onkeydown = (event) => {
 document.addEventListener("pointerdown", (event) => {
   if (!menu.contains(event.target as Node)) closeMenu();
 });
-results.addEventListener("scroll", () => closeMenu());
+document
+  .querySelector("#listing")!
+  .addEventListener("scroll", () => closeMenu());
 window.addEventListener("blur", () => closeMenu());
 new MutationObserver(render).observe(document.body, {
   attributes: true,
