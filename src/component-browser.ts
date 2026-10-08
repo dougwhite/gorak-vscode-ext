@@ -56,11 +56,25 @@ export function registerComponentBrowser(
     })();
     return loading;
   };
-  const open = async (id: string) => {
+  const stylesheet = (item: Component) =>
+    vscode.Uri.parse(item.sourceUri).with({
+      path: vscode.Uri.parse(item.sourceUri).path.replace(
+        /\.(w4gl|wml)$/i,
+        ".fielddefaults.json",
+      ),
+    });
+  const open = async (id: string, action = "default") => {
     const item = catalogue.components.find((candidate) => candidate.id === id);
     if (!item) return;
     try {
-      const target = componentTarget(item);
+      const target =
+        action === "source"
+          ? { uri: item.sourceUri, designer: false }
+          : action === "stylesheet" && componentTarget(item).designer
+            ? { uri: stylesheet(item).toString(), designer: false }
+            : componentTarget(item);
+      if (action === "stylesheet")
+        await vscode.workspace.fs.stat(vscode.Uri.parse(target.uri));
       await vscode.commands.executeCommand(
         target.designer ? "gorak.openFrameDesigner" : "vscode.openWith",
         vscode.Uri.parse(target.uri),
@@ -93,8 +107,8 @@ export function registerComponentBrowser(
       const iconBase = next.webview.asWebviewUri(icons);
       next.webview.html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; img-src ${next.webview.cspSource};"><style>
 body{margin:0;padding:8px;box-sizing:border-box;height:100vh;display:flex;flex-direction:column;color:var(--vscode-foreground);background:var(--vscode-sideBar-background);font:var(--vscode-font-size) var(--vscode-font-family)}
-.controls{display:flex;flex:none;gap:5px;margin-bottom:6px}select,input{box-sizing:border-box;width:100%;min-width:0;color:var(--vscode-input-foreground);background:var(--vscode-input-background);border:1px solid var(--vscode-input-border,transparent);padding:5px;font:inherit}button{font:inherit;color:inherit;background:transparent;border:0;cursor:pointer}button:focus-visible,input:focus,select:focus{outline:1px solid var(--vscode-focusBorder)}#gear{padding:3px 8px;font-size:19px}#types{padding:5px 0;max-height:40vh;overflow:auto;flex:none}#types label{display:flex;align-items:center;gap:5px;margin:5px 0}#types input{width:auto}#status{font-size:11px;color:var(--vscode-descriptionForeground);padding:8px 0}#results{padding:0;margin:0;list-style:none;overflow:auto;flex:1;min-height:0}.row{display:flex;width:100%;gap:6px;align-items:center;text-align:left;min-height:26px;padding:3px 2px}.row:hover,.row:focus{background:var(--vscode-list-hoverBackground)}.row img{width:16px;height:16px;flex:none}.name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.app{margin-left:auto;color:var(--vscode-descriptionForeground);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:45%}#more{width:100%;padding:8px;flex:none} [hidden]{display:none!important}
-</style></head><body data-icons="${iconBase}"><div class="controls"><select id="application" aria-label="Application"><option value="">(ALL) applications</option></select><button id="gear" title="Filter component types" aria-label="Filter component types" aria-expanded="false">⚙</button></div><input id="search" type="search" placeholder="Find component or app!component" aria-label="Find component" autocomplete="off"><div id="types" hidden></div><div id="status" role="status" aria-live="polite"></div><ul id="results" aria-label="Components"></ul><button id="more" hidden>Show more</button><script nonce="${nonce}" src="${script}"></script></body></html>`;
+.controls{display:flex;flex:none;gap:5px;margin-bottom:6px;align-items:center}select,input{box-sizing:border-box;width:100%;min-width:0;color:var(--vscode-input-foreground);background:var(--vscode-input-background);border:1px solid var(--vscode-input-border,transparent);padding:5px;font:inherit}button{font:inherit;color:inherit;background:transparent;border:0;cursor:pointer}button:focus-visible,input:focus,select:focus{outline:1px solid var(--vscode-focusBorder)}#heading{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#gear{padding:3px 8px;font-size:19px}#types{padding:5px 0;max-height:40vh;overflow:auto;flex:none}#types label{display:flex;align-items:center;gap:5px;margin:5px 0}#types input{width:auto}#status{font-size:11px;color:var(--vscode-descriptionForeground);padding:8px 0}#results{padding:0;margin:0;list-style:none;overflow:auto;flex:1;min-height:0}#results li{content-visibility:auto;contain-intrinsic-size:auto 28px}.row{display:flex;width:100%;gap:6px;align-items:center;text-align:left;min-height:28px;padding:3px 2px}.row:hover,.row:focus{background:var(--vscode-list-hoverBackground)}.row img{width:16px;height:16px;flex:none}.name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}.type,.app{color:var(--vscode-descriptionForeground);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:35%}#global{color:var(--vscode-textLink-foreground);padding:9px 0;text-align:left;flex:none}#menu{position:fixed;z-index:5;background:var(--vscode-menu-background,var(--vscode-editor-background));border:1px solid var(--vscode-menu-border,var(--vscode-focusBorder));padding:4px;box-shadow:0 2px 8px #0005;max-width:95vw}#menu button{display:block;padding:6px 12px;width:100%;text-align:left}#menu button:hover,#menu button:focus{background:var(--vscode-list-hoverBackground)}[hidden]{display:none!important}
+</style></head><body data-icons="${iconBase}"><div class="controls"><button id="back" aria-label="Back to applications" title="Back to applications" hidden>←</button><strong id="heading">Applications</strong><button id="gear" title="Filter component types" aria-label="Filter component types" aria-expanded="false">⚙</button></div><input id="search" type="search" placeholder="Find application" aria-label="Search" autocomplete="off"><div class="controls" id="sorting" hidden><select id="sort" aria-label="Sort components"><option value="name">Name</option><option value="type">Type</option><option value="application">Application</option></select><button id="direction" aria-label="Sort descending" title="Sort descending">↑</button></div><div id="types" hidden></div><div id="status" role="status" aria-live="polite"></div><ul id="results" aria-label="Applications"></ul><button id="global" hidden>Find in all applications</button><div id="menu" role="menu" hidden></div><script nonce="${nonce}" src="${script}"></script></body></html>`;
       context.subscriptions.push(
         next.webview.onDidReceiveMessage(async (message) => {
           if (message.type === "ready") {
@@ -105,7 +119,32 @@ body{margin:0;padding:8px;box-sizing:border-box;height:100vh;display:flex;flex-d
             }
             await refresh();
           } else if (message.type === "open" && typeof message.id === "string")
-            await open(message.id);
+            await open(
+              message.id,
+              ["source", "stylesheet"].includes(message.action)
+                ? message.action
+                : "default",
+            );
+          else if (
+            message.type === "context" &&
+            typeof message.id === "string"
+          ) {
+            const item = catalogue.components.find(
+              (candidate) => candidate.id === message.id,
+            );
+            if (!item || !componentTarget(item).designer) return;
+            let hasStylesheet = false;
+            try {
+              await vscode.workspace.fs.stat(stylesheet(item));
+              hasStylesheet = true;
+            } catch {}
+            await next.webview.postMessage({
+              type: "context",
+              id: item.id,
+              request: message.request,
+              stylesheet: hasStylesheet,
+            });
+          }
         }),
         next.onDidChangeVisibility(() => {
           if (next.visible) void refresh();

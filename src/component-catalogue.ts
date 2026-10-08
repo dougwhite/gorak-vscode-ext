@@ -128,3 +128,25 @@ export function componentTarget(component: Component): {
     designer,
   };
 }
+
+export type ComponentSort = "name" | "type" | "application";
+export function sortComponents(
+  items: readonly Component[],
+  key: ComponentSort,
+  descending = false,
+): Component[] {
+  const value = (item: Component) =>
+    key === "type"
+      ? (componentTypes[item.componentType]?.label ?? item.componentType)
+      : key === "application"
+        ? item.application
+        : item.name;
+  return [...items].sort(
+    (a, b) =>
+      (descending ? -1 : 1) *
+      (value(a).localeCompare(value(b)) ||
+        a.name.localeCompare(b.name) ||
+        a.application.localeCompare(b.application) ||
+        a.id.localeCompare(b.id)),
+  );
+}
