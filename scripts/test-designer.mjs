@@ -700,11 +700,42 @@ try {
       1,
       "Reopening a pinned frame preserves the other preview",
     );
-    // The existing tab label precedes the asynchronous editor focus transition.
+    // DOM focus alone cannot transfer native focus from the editor to a webview
+    // on Windows. Use the real context-menu pointer gesture before asserting the
+    // command receiver, so subsequent source typing/undo exercises the right pane.
     await frameTab.and(page.locator('[aria-selected="true"]')).waitFor();
-    await row("search_frame").focus();
-    await componentsView.waitForFunction(() => document.hasFocus());
+    const focusState = async () => ({
+      sidebar: await componentsView.evaluate(() => ({
+        focused: document.hasFocus(),
+        activeTag: document.activeElement?.tagName,
+        activeRole: document.activeElement?.getAttribute("role"),
+        activeText: document.activeElement?.textContent,
+        menuHidden: document.querySelector("#menu")?.hidden,
+      })),
+      workbench: await page.evaluate(() => ({
+        focused: document.hasFocus(),
+        activeTag: document.activeElement?.tagName,
+        selectedTabs: [
+          ...document.querySelectorAll('[role="tab"][aria-selected="true"]'),
+        ].map((tab) => tab.getAttribute("aria-label")),
+      })),
+    });
+    const beforeContextFocus = await focusState();
+    await page.bringToFront();
     await row("search_frame").click({ button: "right" });
+    try {
+      await componentsView.waitForFunction(
+        () =>
+          document.hasFocus() &&
+          document.activeElement?.getAttribute("role") === "menuitem",
+      );
+    } catch (error) {
+      console.error("Component context-menu focus state", {
+        before: beforeContextFocus,
+        after: await focusState(),
+      });
+      throw error;
+    }
     await context
       .getByRole("menuitem", { name: "View source code", exact: true })
       .click();
