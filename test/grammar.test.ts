@@ -93,5 +93,33 @@ test("TextMate grammars tokenize TOML, 4GL, WML and embedded scripts", async () 
       .tokenizeLine(literal, INITIAL)
       .tokens.some((t) => t.scopes.includes("meta.preprocessor.xml")),
   );
+  const graph = await fs.readFile(
+    "test/fixtures/frmflow/query_probe.wml",
+    "utf8",
+  );
+  for (const source of [
+    graph,
+    "<frame><frmflow/></frame>",
+    "<frame><frmflow> legacy scalar </frmflow></frame>",
+    "<frame><topform/></frame>",
+  ]) {
+    let graphState = INITIAL;
+    for (const line of source.split(/\r?\n/)) {
+      const parsed = wml.tokenizeLine(line, graphState);
+      graphState = parsed.ruleStack;
+      if (line.includes("<frmflow"))
+        assert.ok(
+          parsed.tokens.some((t) => t.scopes.includes("entity.name.tag.xml")),
+          "frmflow remains normal XML",
+        );
+      if (line.includes("<expression>"))
+        assert.ok(
+          !parsed.tokens.some((t) =>
+            t.scopes.includes("keyword.control.openroad"),
+          ),
+          "Query expressions stay XML text",
+        );
+    }
+  }
   registry.dispose();
 });

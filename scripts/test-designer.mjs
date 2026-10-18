@@ -23,6 +23,18 @@ if (compatibility) {
   await fs.mkdir(workspace);
   original =
     '<frame><!-- retained 😀 --><topform width="6500" height="4000"><entryfield name="caption" xleft="250" ytop="250" width="1200" height="350"/><entryfield name="zero" width="0" height="0"><defaultstring>  </defaultstring><opaque><row/><row> </row></opaque></entryfield><viewportfield name="viewport" xleft="3500" ytop="500" width="1500" height="1200"><viewfield type="flexibleform" name="content" width="1200" height="1000"><entryfield name="inside" width="500" height="250"/><script>INITIALIZE = { MESSAGE inside; }</script></viewfield></viewportfield><tabfolder xleft="0" ytop="2200" width="1800" height="1200"><tabpagearray><row name="details" width="1800" height="1200"><entryfield name="postal" width="500" height="250"/></row></tabpagearray></tabfolder><entryfield name="second" xleft="2000" ytop="1000" width="800" height="350"/><buttonfield name="picture" xleft="5000" ytop="500" width="600" height="600"><bitmaplabel src="builtin:imagtrm3"/></buttonfield></topform></frame>\r\n';
+  const queryFixture = await fs.readFile(
+    "test/fixtures/frmflow/query_probe.wml",
+    "utf8",
+  );
+  original = original.replace(
+    "</frame>",
+    queryFixture.slice(
+      queryFixture.indexOf("  <frmflow>"),
+      queryFixture.lastIndexOf("</frame>"),
+    ) + "</frame>",
+  );
+  original = original.replace(/\r?\n/g, "\r\n");
   await fs.writeFile(file, original);
   await fs.writeFile(
     path.join(workspace, "sample.w4gl"),
@@ -186,6 +198,14 @@ try {
       original,
       "Whitespace, empty rows and opaque XML survive host transport",
     );
+    assert.ok(
+      !model.fields.some(
+        (f) => f.name === "metadata_only_field" || f.name === "metadata_frame",
+      ),
+      "frmflow metadata must never become layout",
+    );
+    assert.match(model.text, /<tblcol oidref="42"\/>/);
+    assert.match(model.text, /Größe &amp; Maß/);
     const zero = model.fields.find((f) => f.name === "zero");
     assert.ok(zero, "Zero-size field remains represented");
     assert.equal(zero.width, 0);
@@ -680,11 +700,42 @@ try {
       1,
       "Reopening a pinned frame preserves the other preview",
     );
-    // The existing tab label precedes the asynchronous editor focus transition.
+    // DOM focus alone cannot transfer native focus from the editor to a webview
+    // on Windows. Use the real context-menu pointer gesture before asserting the
+    // command receiver, so subsequent source typing/undo exercises the right pane.
     await frameTab.and(page.locator('[aria-selected="true"]')).waitFor();
-    await row("search_frame").focus();
-    await componentsView.waitForFunction(() => document.hasFocus());
+    const focusState = async () => ({
+      sidebar: await componentsView.evaluate(() => ({
+        focused: document.hasFocus(),
+        activeTag: document.activeElement?.tagName,
+        activeRole: document.activeElement?.getAttribute("role"),
+        activeText: document.activeElement?.textContent,
+        menuHidden: document.querySelector("#menu")?.hidden,
+      })),
+      workbench: await page.evaluate(() => ({
+        focused: document.hasFocus(),
+        activeTag: document.activeElement?.tagName,
+        selectedTabs: [
+          ...document.querySelectorAll('[role="tab"][aria-selected="true"]'),
+        ].map((tab) => tab.getAttribute("aria-label")),
+      })),
+    });
+    const beforeContextFocus = await focusState();
+    await page.bringToFront();
     await row("search_frame").click({ button: "right" });
+    try {
+      await componentsView.waitForFunction(
+        () =>
+          document.hasFocus() &&
+          document.activeElement?.getAttribute("role") === "menuitem",
+      );
+    } catch (error) {
+      console.error("Component context-menu focus state", {
+        before: beforeContextFocus,
+        after: await focusState(),
+      });
+      throw error;
+    }
     await context
       .getByRole("menuitem", { name: "View source code", exact: true })
       .click();

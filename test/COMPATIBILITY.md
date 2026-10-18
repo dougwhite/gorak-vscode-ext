@@ -1,7 +1,7 @@
 # Upstream compatibility
 
-`ecosystem.toml` pins source contract 12, gorak `v0.1.0-alpha.1.dev.83`,
-LSP `v0.9.0-alpha.7` and designer `v0.1.0-alpha.4`. Run:
+`ecosystem.toml` pins the exact gorak source candidate, source contract, released
+LSP and released designer. Run:
 
 ```sh
 npm ci
@@ -44,6 +44,14 @@ also checks stylesheet absence, zero-size geometry, nested viewport content,
 whitespace scalar/empty row/opaque XML transport and source navigation to the
 nested field's exact selection length. The reusable component retains its editing
 capability; the extension sets readOnly and rejects writes at the host boundary.
+Independent `test/fixtures/frmflow` source also checks populated query metadata,
+shared object references, multiline expressions, non-ASCII text and escaped XML.
+The released designer must retain the entire graph while excluding metadata from
+layout; a real layout edit must preserve it byte for byte. Empty, typed-empty,
+scalar and absent variants are covered. The installed server must keep nested
+metadata scripts and names out of the outline while preserving exact UTF-16
+layout-field navigation and source/designer switching.
+
 Development-host tests separately cover raw TextDocument editing, dirty/save state,
 viewer refresh, filename associations, icons and opt-outs.
 

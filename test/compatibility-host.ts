@@ -1,3 +1,4 @@
+import { testFrmflow } from "./frmflow-host";
 import { testContract12 } from "./contract12-host";
 // Only VS Code APIs: the server and designer must come from the installed VSIX.
 import * as vscode from "vscode";
@@ -36,6 +37,7 @@ export async function run() {
     await new Promise((r) => setTimeout(r, 50));
   }
   await testContract12(root);
+  await testFrmflow(root);
   const wml = await open("example/panel.wml");
   await vscode.window.showTextDocument(wml);
   assert.equal(wml.languageId, "gorak-wml");
@@ -142,6 +144,7 @@ export async function run() {
       outline: 2,
       designerAndRawSource: true,
       contract12MembersUtf16DiagnosticsCompletionRenameCore: true,
+      frmflowMetadataOpaqueAndPreserved: true,
     }),
   );
 }

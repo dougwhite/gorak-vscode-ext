@@ -1,0 +1,31 @@
+<frame>
+  <!-- independent consumer fixture 😀; metadata names are not layout -->
+  <topform width="4000" height="2000">
+    <entryfield name="query_caption" xleft="100" ytop="100" width="1000" height="300"/>
+    <script><![CDATA[INITIALIZE = { MESSAGE query_caption; }]]></script>
+  </topform>
+  <frmflow>
+    <query>
+      <name>metadata_query</name>
+      <erinfo>
+        <tabledefs>
+          <row oid="41"><name>customers</name><columns>
+            <row oid="42"><name>caption</name><length>80</length></row>
+            <row_class>tblcol</row_class>
+          </columns></row>
+          <row_class>tabledef</row_class>
+        </tabledefs>
+      </erinfo>
+      <rescols>
+        <row><expression>trim(customers.caption) + ' Größe &amp; Maß '
++ '&lt;caption&gt;'</expression><tblcol oidref="42"/><tabdef oidref="41"/></row>
+        <row><expression>customers.caption</expression><tblcol oidref="42"/><tabdef oidref="41"/></row>
+        <row_class>resultcolumn</row_class>
+      </rescols>
+      <frame><name>metadata_frame</name><template>query_template</template><isgenerated>1</isgenerated></frame>
+      <entryfield name="metadata_only_field"/>
+      <script><![CDATA[ON CLICK = { MESSAGE metadata_only_variable; }]]></script>
+    </query>
+    <framenum>1</framenum>
+  </frmflow>
+</frame>

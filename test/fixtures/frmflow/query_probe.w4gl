@@ -1,0 +1,5 @@
+[framesource]
+windowtitle = "Independent frmflow probe"
+
+===
+initialize = { MESSAGE query_caption; }

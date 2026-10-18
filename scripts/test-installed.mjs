@@ -34,6 +34,13 @@ if (compatibility) {
     path.join(workspace, "example/member_probe.w4gl"),
   );
 }
+if (compatibility) {
+  for (const name of ["query_probe.wml", "query_probe.w4gl"])
+    await fs.copyFile(
+      path.join("test/fixtures/frmflow", name),
+      path.join(workspace, "example", name),
+    );
+}
 if (template) {
   const panel = path.join(workspace, "example/panel.w4gl");
   const source = await fs.readFile(panel, "utf8");
